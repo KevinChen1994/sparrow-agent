@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sparrow Agent</title>
+    <style>
+      :root {
+        --bg: linear-gradient(135deg, #f6efe2 0%, #dce6f5 100%);
+        --card: rgba(255, 255, 255, 0.9);
+        --text: #1d2433;
+        --accent: #1f6feb;
+        --border: rgba(29, 36, 51, 0.12);
+      }
+      body {
+        margin: 0;
+        font-family: "Iowan Old Style", "Palatino Linotype", serif;
+        background: var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+      }
+      main {
+        width: min(760px, calc(100vw - 32px));
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 24px;
+        box-shadow: 0 20px 60px rgba(29, 36, 51, 0.12);
+        padding: 24px;
+      }
+      h1 {
+        margin-top: 0;
+        font-size: 2rem;
+      }
+      #messages {
+        height: 420px;
+        overflow: auto;
+        padding: 16px;
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid var(--border);
+      }
+      .msg {
+        margin-bottom: 14px;
+        white-space: pre-wrap;
+      }
+      .role {
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #5e6a81;
+      }
+      form {
+        margin-top: 16px;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+      }
+      input, button {
+        font: inherit;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        padding: 14px 16px;
+      }
+      button {
+        background: var(--accent);
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sparrow Agent</h1>
+      <div id="messages"></div>
+      <form id="chat-form">
+        <input id="message" name="message" placeholder="Ask something..." autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </main>
+    <script>
+      const sessionId = "web-demo";
+      const messages = document.getElementById("messages");
+      const form = document.getElementById("chat-form");
+      const input = document.getElementById("message");
+      const seenMessages = new Set();
+
+      function appendMessage(role, content) {
+        const key = `${role}:${content}`;
+        if (seenMessages.has(key)) return;
+        seenMessages.add(key);
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg";
+        wrapper.innerHTML = `<div class="role">${role}</div><div>${content}</div>`;
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      async function initializeSession() {
+        const response = await fetch(`/api/session/${sessionId}`);
+        const data = await response.json();
+        if (data.reply) {
+          appendMessage("agent", data.reply);
+        }
+      }
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const message = input.value.trim();
+        if (!message) return;
+        appendMessage("user", message);
+        input.value = "";
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, message }),
+        });
+        const data = await response.json();
+        appendMessage("agent", data.reply);
+      });
+
+      initializeSession();
+    </script>
+  </body>
+</html>

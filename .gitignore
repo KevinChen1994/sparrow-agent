@@ -1,0 +1,14 @@
+sparrow/
+__pycache__/
+*.pyc
+.pytest_cache/
+.claude/
+*.egg-info/
+AGENTS.md
+data/sessions/*.json
+data/logs/*.jsonl
+data/memories/*.jsonl
+data/memories/profile.json
+data/config/openai.json
+/docs/
+.sparrow/

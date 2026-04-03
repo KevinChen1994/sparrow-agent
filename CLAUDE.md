@@ -93,9 +93,10 @@ Initialized from `templates/runtime/` on first run.
 
 ### Storage
 
-- `data/sessions/`: Session JSON files
-- `data/memories/`: Memory storage
-- `data/logs/`: Execution logs
+- `.sparrow/sessions/`: Session JSON files
+- `.sparrow/memories/`: Structured memory (facts.jsonl)
+- `.sparrow/logs/`: Execution logs
+- `.sparrow/memory/`: Daily memory markdown
 - `data/config/`: OpenAI configuration
 
 ## Development Guidelines

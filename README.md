@@ -67,11 +67,11 @@ If they do not exist yet, Sparrow Agent initializes them from `templates/runtime
 
 ### Storage
 
-Runtime data is stored under `data/`:
+Runtime data is stored under `.sparrow/`:
 
-- `data/sessions/`
-- `data/memories/`
-- `data/logs/`
+- `.sparrow/sessions/`
+- `.sparrow/memories/`
+- `.sparrow/logs/`
 
 ### Runtime Controls
 

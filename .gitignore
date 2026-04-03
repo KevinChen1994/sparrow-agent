@@ -4,7 +4,6 @@ __pycache__/
 .pytest_cache/
 .claude/
 *.egg-info/
-/AGENTS.md
 data/sessions/*.json
 data/logs/*.jsonl
 data/memories/*.jsonl

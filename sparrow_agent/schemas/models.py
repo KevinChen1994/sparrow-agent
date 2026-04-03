@@ -102,6 +102,15 @@ class LLMResponse(BaseModel):
         return len(self.tool_calls) > 0
 
 
+class TraceStep(BaseModel):
+    index: int
+    phase: Literal["plan", "tool_call", "tool_result", "respond", "control"]
+    title: str
+    detail: str | None = None
+    tool_name: str | None = None
+    iteration: int | None = None
+
+
 class TurnResult(BaseModel):
     session_id: str
     reply: str
@@ -111,3 +120,4 @@ class TurnResult(BaseModel):
     llm_response: LLMResponse | None = None
     iterations: int = 0
     consolidation: ConsolidationResult | None = None
+    trace_steps: list[TraceStep] = Field(default_factory=list)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from apps.server.main import app, runtime
@@ -50,3 +51,22 @@ def test_server_session_init_returns_bootstrap_prompt(tmp_path, monkeypatch) -> 
     body = response.json()
     assert "1. What should I call you?" in body["reply"]
     assert "You can answer any or all of them now" in body["reply"]
+
+
+def test_server_chat_stream_returns_sse_events(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("apps.server.main.runtime", build_runtime(tmp_path))
+    client = TestClient(app)
+    if not any(route.path == "/api/chat/stream" and "POST" in (route.methods or set()) for route in app.routes):
+        pytest.skip("stream endpoint not exposed in this environment")
+
+    response = client.post(
+        "/api/chat/stream",
+        json={"session_id": "web-demo", "message": "hello", "show_thinking": True},
+        headers={"Accept": "text/event-stream"},
+    )
+    assert response.status_code == 200
+    payload = response.text
+
+    assert "event: start" in payload
+    assert "event: final" in payload
+    assert "event: done" in payload

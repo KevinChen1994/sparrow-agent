@@ -74,9 +74,9 @@ def test_build_startup_banner_has_wide_and_compact_variants() -> None:
     wide = build_startup_banner(width=80, color=False)
     compact = build_startup_banner(width=40, color=False)
 
-    assert "__(o )>" in wide
-    assert "\\ <_. )" in wide
-    assert "`---'" in wide
+    assert "___( o)>" in wide
+    assert "/   ~~~" in wide
+    assert "'---'" in wide
     assert "Sparrow Agent" in wide
     assert compact == "Sparrow Agent\nsmall but complete."
 

@@ -101,4 +101,12 @@ def build_memory_tools(file_store: FileStore) -> list:
             description="Propose a modification to SOUL.md for later review.",
             requires_confirmation=True,
         ),
+        UpdateMarkdownDocTool(
+            file_store=file_store,
+            name="propose_agents_patch",
+            path=file_store.agents_doc_path,
+            heading="Identity",
+            description="Propose a modification to AGENTS.md for later review.",
+            requires_confirmation=True,
+        ),
     ]

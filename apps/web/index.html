@@ -33,6 +33,29 @@
         margin-top: 0;
         font-size: 2rem;
       }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .hint {
+        font-size: 0.85rem;
+        color: #5e6a81;
+      }
+      #thinking-toggle {
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      #thinking-toggle[data-on="true"] {
+        background: #dff2eb;
+        border-color: #88c3ad;
+      }
       #messages {
         height: 420px;
         overflow: auto;
@@ -50,6 +73,21 @@
         letter-spacing: 0.08em;
         text-transform: uppercase;
         color: #5e6a81;
+      }
+      .trace {
+        margin-top: 8px;
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 8px 10px;
+        font-size: 0.85rem;
+        background: rgba(255, 255, 255, 0.55);
+      }
+      .trace.hidden {
+        display: none;
+      }
+      .thinking-placeholder {
+        color: #5e6a81;
+        font-style: italic;
       }
       form {
         margin-top: 16px;
@@ -73,7 +111,11 @@
   </head>
   <body>
     <main>
-      <h1>Sparrow Agent</h1>
+      <div class="topbar">
+        <h1>Sparrow Agent</h1>
+        <button id="thinking-toggle" data-on="false" type="button">Thinking: OFF</button>
+      </div>
+      <div class="hint">Shortcut: Ctrl/Cmd + Shift + T</div>
       <div id="messages"></div>
       <form id="chat-form">
         <input id="message" name="message" placeholder="Ask something..." autocomplete="off" />
@@ -85,7 +127,17 @@
       const messages = document.getElementById("messages");
       const form = document.getElementById("chat-form");
       const input = document.getElementById("message");
+      const thinkingToggle = document.getElementById("thinking-toggle");
       const seenMessages = new Set();
+      let showThinking = false;
+
+      function syncThinkingToggle() {
+        thinkingToggle.dataset.on = String(showThinking);
+        thinkingToggle.textContent = `Thinking: ${showThinking ? "ON" : "OFF"}`;
+        document.querySelectorAll(".trace").forEach((node) => {
+          node.classList.toggle("hidden", !showThinking);
+        });
+      }
 
       function appendMessage(role, content) {
         const key = `${role}:${content}`;
@@ -98,11 +150,149 @@
         messages.scrollTop = messages.scrollHeight;
       }
 
+      function appendAgentMessage(content, traceSteps) {
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg";
+        wrapper.innerHTML = `<div class="role">agent</div><div>${content}</div>`;
+        if (traceSteps && traceSteps.length > 0) {
+          const trace = document.createElement("div");
+          trace.className = "trace";
+          trace.classList.toggle("hidden", !showThinking);
+          const lines = traceSteps
+            .map((step) => {
+              const detail = step.detail ? ` - ${step.detail}` : "";
+              return `[${step.index}] ${step.phase}: ${step.title}${detail}`;
+            })
+            .join("\n");
+          trace.textContent = lines;
+          wrapper.appendChild(trace);
+        }
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      function createPendingAgentMessage() {
+        const wrapper = document.createElement("div");
+        wrapper.className = "msg";
+
+        const role = document.createElement("div");
+        role.className = "role";
+        role.textContent = "agent";
+
+        const content = document.createElement("div");
+        content.textContent = "Thinking...";
+
+        const trace = document.createElement("div");
+        trace.className = "trace";
+        trace.classList.toggle("hidden", !showThinking);
+        trace.textContent = "";
+
+        wrapper.appendChild(role);
+        wrapper.appendChild(content);
+        wrapper.appendChild(trace);
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+        return { wrapper, content, trace, traceLines: [] };
+      }
+
       async function initializeSession() {
         const response = await fetch(`/api/session/${sessionId}`);
         const data = await response.json();
         if (data.reply) {
-          appendMessage("agent", data.reply);
+          appendAgentMessage(data.reply, data.trace_steps || []);
+        }
+      }
+
+      function parseSseChunk(chunk) {
+        const lines = chunk.split("\n");
+        let event = "message";
+        const dataLines = [];
+        for (const line of lines) {
+          if (line.startsWith("event:")) {
+            event = line.slice(6).trim();
+          } else if (line.startsWith("data:")) {
+            dataLines.push(line.slice(5).trim());
+          }
+        }
+        const dataText = dataLines.join("\n");
+        let data = {};
+        if (dataText) {
+          try {
+            data = JSON.parse(dataText);
+          } catch {
+            data = { raw: dataText };
+          }
+        }
+        return { event, data };
+      }
+
+      function renderTraceLines(pending) {
+        if (!pending.traceLines.length) {
+          pending.trace.textContent = "";
+          return;
+        }
+        pending.trace.textContent = pending.traceLines.join("\n");
+      }
+
+      function handleSseEvent(sse, pending) {
+        if (sse.event === "trace") {
+          const step = sse.data || {};
+          const detail = step.detail ? ` - ${step.detail}` : "";
+          pending.traceLines.push(`[${step.index}] ${step.phase}: ${step.title}${detail}`);
+          renderTraceLines(pending);
+          return;
+        }
+        if (sse.event === "final") {
+          pending.content.textContent = sse.data.reply || "(empty)";
+          if ((!pending.traceLines.length) && Array.isArray(sse.data.trace_steps)) {
+            pending.traceLines = sse.data.trace_steps.map((step) => {
+              const detail = step.detail ? ` - ${step.detail}` : "";
+              return `[${step.index}] ${step.phase}: ${step.title}${detail}`;
+            });
+            renderTraceLines(pending);
+          }
+          return;
+        }
+        if (sse.event === "error") {
+          pending.content.textContent = `Error: ${sse.data.message || "stream failed"}`;
+        }
+      }
+
+      async function streamChat(message) {
+        const pending = createPendingAgentMessage();
+        const response = await fetch("/api/chat/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ session_id: sessionId, message, show_thinking: showThinking }),
+        });
+        if (!response.ok || !response.body) {
+          pending.content.textContent = `Error: stream failed (${response.status})`;
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        while (true) {
+          const { value, done } = await reader.read();
+          buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+          let split = buffer.indexOf("\n\n");
+          while (split !== -1) {
+            const chunk = buffer.slice(0, split).trim();
+            buffer = buffer.slice(split + 2);
+            if (chunk) {
+              handleSseEvent(parseSseChunk(chunk), pending);
+            }
+            split = buffer.indexOf("\n\n");
+          }
+
+          if (done) {
+            if (buffer.trim()) {
+              handleSseEvent(parseSseChunk(buffer.trim()), pending);
+            }
+            break;
+          }
         }
       }
 
@@ -112,15 +302,25 @@
         if (!message) return;
         appendMessage("user", message);
         input.value = "";
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId, message }),
-        });
-        const data = await response.json();
-        appendMessage("agent", data.reply);
+        await streamChat(message);
       });
 
+      thinkingToggle.addEventListener("click", () => {
+        showThinking = !showThinking;
+        syncThinkingToggle();
+      });
+
+      window.addEventListener("keydown", (event) => {
+        const key = event.key.toLowerCase();
+        const withCmd = event.metaKey || event.ctrlKey;
+        if (withCmd && event.shiftKey && key === "t") {
+          event.preventDefault();
+          showThinking = !showThinking;
+          syncThinkingToggle();
+        }
+      });
+
+      syncThinkingToggle();
       initializeSession();
     </script>
   </body>

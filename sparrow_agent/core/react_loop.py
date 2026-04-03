@@ -1,15 +1,24 @@
 from __future__ import annotations
 
+from typing import Callable
+
 from sparrow_agent.llm.base import ModelClient
-from sparrow_agent.schemas.models import LLMResponse, LoopState, Message, RuntimeContext
+from sparrow_agent.schemas.models import DocumentSnapshot, LLMResponse, LoopState, Message, RuntimeContext
 from sparrow_agent.tools.registry import ToolRegistry
 
 
 class ReActLoop:
-    def __init__(self, model_client: ModelClient, tool_registry: ToolRegistry, halt_policy) -> None:
+    def __init__(
+        self,
+        model_client: ModelClient,
+        tool_registry: ToolRegistry,
+        halt_policy,
+        refresh_documents: Callable[[], list[DocumentSnapshot]] | None = None,
+    ) -> None:
         self.model_client = model_client
         self.tool_registry = tool_registry
         self.halt_policy = halt_policy
+        self.refresh_documents = refresh_documents
 
     def run(self, ctx: RuntimeContext, system_prompts: list[str]) -> tuple[str, LLMResponse | None, list[str], LoopState]:
         loop_state = ctx.loop_state.model_copy()
@@ -51,9 +60,25 @@ class ReActLoop:
 
             loop_state.tool_calls.extend(last_response.tool_calls)
             loop_state.observations.extend(tool_messages)
+            if any(self._tool_mutates_memory(tool_call.name) for tool_call in last_response.tool_calls):
+                refreshed = self._refresh_documents()
+                if refreshed is not None:
+                    ctx = ctx.model_copy(update={"documents": refreshed})
 
             should_stop, reason = self.halt_policy.should_stop(loop_state, None)
             if should_stop:
                 if last_response.content:
                     return last_response.content, last_response, used_tools, loop_state
                 return reason or "(stopped)", last_response, used_tools, loop_state
+
+    def _tool_mutates_memory(self, tool_name: str) -> bool:
+        definition = self.tool_registry.get_definition(tool_name)
+        return bool(definition and definition.mutates_memory)
+
+    def _refresh_documents(self) -> list[DocumentSnapshot] | None:
+        if self.refresh_documents is None:
+            return None
+        try:
+            return self.refresh_documents()
+        except Exception:
+            return None

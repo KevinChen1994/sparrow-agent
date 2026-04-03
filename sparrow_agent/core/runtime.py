@@ -39,7 +39,12 @@ class AgentRuntime:
         self.model_client = model_client or build_default_model_client()
         self.tool_registry = tool_registry or self._build_default_tool_registry()
         self.halt_policy = HaltPolicy(max_iterations=max_iterations)
-        self.react_loop = ReActLoop(self.model_client, self.tool_registry, self.halt_policy)
+        self.react_loop = ReActLoop(
+            self.model_client,
+            self.tool_registry,
+            self.halt_policy,
+            refresh_documents=lambda: self.context_loader.load().documents,
+        )
         self.consolidator = SessionConsolidator(
             file_store=self.file_store,
             memory_window=memory_window,

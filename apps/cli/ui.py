@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import itertools
+import queue
+import select
 import shutil
 import sys
 import threading
@@ -8,7 +10,7 @@ import time
 from collections.abc import Callable
 from typing import TextIO, TypeVar
 
-from sparrow_agent.schemas.models import TurnResult
+from sparrow_agent.schemas.models import TraceStep, TurnResult
 
 T = TypeVar("T")
 
@@ -28,6 +30,9 @@ def run_with_spinner(
     interval: float = 0.1,
     delay: float = 0.2,
     enabled: bool | None = None,
+    key_handler: Callable[[str], None] | None = None,
+    trace_queue: "queue.Queue[str] | None" = None,
+    trace_enabled_getter: Callable[[], bool] | None = None,
 ) -> T:
     output = stream or sys.stdout
     should_animate = enabled if enabled is not None else bool(getattr(output, "isatty", lambda: False)())
@@ -51,21 +56,65 @@ def run_with_spinner(
     start = time.monotonic()
     frame_iter = itertools.cycle(SPINNER_FRAMES)
     last_width = 0
+    stdin = sys.stdin
+    stdin_tty = bool(getattr(stdin, "isatty", lambda: False)())
+    fd = None
+    old_attrs = None
+    if key_handler is not None and stdin_tty:
+        try:
+            import termios
+            import tty
 
-    if not done.wait(delay):
-        while not done.is_set():
+            fd = stdin.fileno()
+            old_attrs = termios.tcgetattr(fd)
+            tty.setcbreak(fd)
+        except Exception:  # pragma: no cover
+            fd = None
+            old_attrs = None
+
+    try:
+        if not done.wait(delay):
+            while not done.is_set():
+                if fd is not None and key_handler is not None:
+                    try:
+                        readable, _, _ = select.select([fd], [], [], 0)
+                        if readable:
+                            data = stdin.read(1)
+                            if data:
+                                key_handler(data)
+                    except Exception:  # pragma: no cover
+                        pass
+
+                if trace_queue is not None and trace_enabled_getter is not None and trace_enabled_getter():
+                    while True:
+                        try:
+                            trace_line = trace_queue.get_nowait()
+                        except queue.Empty:
+                            break
+                        output.write(f"\r{' ' * max(last_width, 1)}\r")
+                        output.write(f"trace> {trace_line}\n")
+                        output.flush()
+
+                elapsed = time.monotonic() - start
+                line = f"agent {next(frame_iter)} {label}... {elapsed:0.1f}s (Ctrl+T thinking)"
+                padded = line.ljust(last_width)
+                output.write(f"\r{padded}")
+                output.flush()
+                last_width = max(last_width, len(line))
+                done.wait(interval)
+
             elapsed = time.monotonic() - start
-            line = f"agent {next(frame_iter)} {label}... {elapsed:0.1f}s"
-            padded = line.ljust(last_width)
-            output.write(f"\r{padded}")
+            final_line = f"agent * ready {elapsed:0.1f}s"
+            output.write(f"\r{final_line.ljust(last_width)}\n")
             output.flush()
-            last_width = max(last_width, len(line))
-            done.wait(interval)
+    finally:
+        if fd is not None and old_attrs is not None:
+            try:
+                import termios
 
-        elapsed = time.monotonic() - start
-        final_line = f"agent * ready {elapsed:0.1f}s"
-        output.write(f"\r{final_line.ljust(last_width)}\n")
-        output.flush()
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_attrs)
+            except Exception:  # pragma: no cover
+                pass
 
     thread.join()
 
@@ -147,6 +196,18 @@ def render_turn(result: TurnResult, *, stream: TextIO | None = None) -> None:
     meta = format_turn_meta(result)
     if meta:
         output.write(f"[{meta}]\n")
+    output.flush()
+
+
+def render_trace_steps(steps: list[TraceStep], *, stream: TextIO | None = None) -> None:
+    output = stream or sys.stdout
+    if not steps:
+        return
+    output.write("thinking>\n")
+    for step in steps:
+        suffix = f" ({step.tool_name})" if step.tool_name else ""
+        detail = f" - {step.detail}" if step.detail else ""
+        output.write(f"  [{step.index}] {step.phase}: {step.title}{suffix}{detail}\n")
     output.flush()
 
 

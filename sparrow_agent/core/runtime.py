@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 from sparrow_agent.core.bootstrap import BootstrapManager
@@ -10,7 +11,7 @@ from sparrow_agent.core.react_loop import ReActLoop
 from sparrow_agent.llm.base import ModelClient
 from sparrow_agent.llm.openai_client import build_default_model_client
 from sparrow_agent.memory.store import MemoryStore
-from sparrow_agent.schemas.models import LoopState, Message, RuntimeContext, TurnResult
+from sparrow_agent.schemas.models import LoopState, Message, RuntimeContext, TraceStep, TurnResult
 from sparrow_agent.storage.file_store import FileStore
 from sparrow_agent.tools.filesystem import EditFileTool, EchoTool, ListDirTool, ReadFileTool, WriteFileTool
 from sparrow_agent.tools.memory_docs import build_memory_tools
@@ -83,7 +84,12 @@ class AgentRuntime:
         ]
         return ToolRegistry(tools)
 
-    def run_turn(self, session_id: str, user_input: str) -> TurnResult:
+    def run_turn(
+        self,
+        session_id: str,
+        user_input: str,
+        trace_callback: Callable[[TraceStep], None] | None = None,
+    ) -> TurnResult:
         session = self.file_store.load_session(session_id)
         loaded = self.context_loader.load()
         memories = self.memory_store.recall(query=user_input, session_id=session_id)
@@ -119,15 +125,59 @@ class AgentRuntime:
         llm_response = None
         used_tools: list[str] = []
         iterations = 0
+        trace_steps: list[TraceStep] = []
+        trace_index = 0
+
+        def emit(step: TraceStep) -> None:
+            nonlocal trace_index
+            trace_index += 1
+            normalized = step.model_copy(update={"index": trace_index})
+            trace_steps.append(normalized)
+            if trace_callback is not None:
+                trace_callback(normalized)
+
         if tool_result is not None:
             used_tools = [tool_name] if tool_name else []
+            emit(
+                TraceStep(
+                    index=0,
+                    phase="tool_call",
+                    title=f"Calling {tool_name or 'tool'}",
+                    tool_name=tool_name,
+                    iteration=1,
+                )
+            )
             tool_message = Message(role="tool", name=tool_name, content=tool_result.content)
+            emit(
+                TraceStep(
+                    index=0,
+                    phase="tool_result",
+                    title=f"Observed {tool_name or 'tool'}",
+                    detail=tool_result.content[:120],
+                    tool_name=tool_name,
+                    iteration=1,
+                )
+            )
             assistant_message = Message(role="assistant", content=tool_result.content)
             session.messages.extend([tool_message, assistant_message])
             reply_text = tool_result.content
+            emit(
+                TraceStep(
+                    index=0,
+                    phase="respond",
+                    title="Generated response",
+                    iteration=1,
+                )
+            )
         else:
             system_prompts = [skill.build_prompt(ctx) for skill in skills]
-            reply_text, llm_response, used_tools, loop_state = self.react_loop.run(ctx=ctx, system_prompts=system_prompts)
+            reply_text, llm_response, used_tools, loop_state, loop_trace = self.react_loop.run(
+                ctx=ctx,
+                system_prompts=system_prompts,
+                trace_callback=trace_callback,
+            )
+            trace_steps = loop_trace
+            trace_index = len(trace_steps)
             iterations = loop_state.iteration
             session.messages.extend(loop_state.observations)
             assistant_message = Message(role="assistant", content=reply_text)
@@ -164,6 +214,7 @@ class AgentRuntime:
             llm_response=llm_response,
             iterations=iterations,
             consolidation=consolidation,
+            trace_steps=trace_steps,
         )
 
     @staticmethod

@@ -122,6 +122,12 @@ def test_openai_client_maps_tool_message_to_function_call_output() -> None:
         user_input="continue",
         messages=[
             Message(
+                role="function_call",
+                name="read_file",
+                content='{"path":"test.txt"}',
+                metadata={"tool_call_id": "call_tool_123"},
+            ),
+            Message(
                 role="tool",
                 name="read_file",
                 content="file content",
@@ -136,6 +142,12 @@ def test_openai_client_maps_tool_message_to_function_call_output() -> None:
 
     call = fake_client.responses.calls[0]
     assert call["input"][0] == {
+        "type": "function_call",
+        "call_id": "call_tool_123",
+        "name": "read_file",
+        "arguments": '{"path":"test.txt"}',
+    }
+    assert call["input"][1] == {
         "type": "function_call_output",
         "call_id": "call_tool_123",
         "output": "file content",
@@ -183,3 +195,43 @@ def test_openai_client_requires_responses_api() -> None:
         assert "Responses API" in str(exc)
     else:
         raise AssertionError("Expected OpenAIResponsesModelClient to reject clients without responses support.")
+
+
+def test_orphan_tool_outputs_are_filtered() -> None:
+    fake_client = FakeOpenAIClient()
+    client = OpenAIResponsesModelClient(api_key="test", model="gpt-test", client=fake_client)
+    ctx = RuntimeContext(
+        session_id="demo",
+        user_input="continue",
+        messages=[
+            Message(
+                role="tool",
+                name="read_file",
+                content="orphaned result",
+                metadata={"tool_call_id": "call_orphan"},
+            )
+        ],
+        memories=[],
+        active_skills=[],
+    )
+
+    client.generate(ctx=ctx, system_prompts=[])
+
+    call = fake_client.responses.calls[0]
+    # Orphaned function_call_output should be filtered out
+    assert len(call["input"]) == 1
+    assert call["input"][0] == {"role": "user", "content": "continue"}
+
+
+def test_filter_orphan_tool_outputs_keeps_paired_messages() -> None:
+    messages = [
+        {"type": "function_call", "call_id": "call_1", "name": "echo", "arguments": "{}"},
+        {"type": "function_call_output", "call_id": "call_1", "output": "ok"},
+        {"type": "function_call_output", "call_id": "call_orphan", "output": "orphaned"},
+        {"role": "user", "content": "hello"},
+    ]
+    result = OpenAIResponsesModelClient._filter_orphan_tool_outputs(messages)
+    assert len(result) == 3
+    assert result[0]["type"] == "function_call"
+    assert result[1]["type"] == "function_call_output"
+    assert result[2]["role"] == "user"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 
 from sparrow_agent.llm.base import ModelClient
@@ -112,6 +113,14 @@ class ReActLoop:
                 )
                 tool_result = self.tool_registry.execute(tool_call.name, tool_call.arguments, current_ctx)
                 used_tools.append(tool_call.name)
+                tool_messages.append(
+                    Message(
+                        role="function_call",
+                        name=tool_call.name,
+                        content=json.dumps(tool_call.arguments, ensure_ascii=False),
+                        metadata={"tool_call_id": tool_call.id},
+                    )
+                )
                 tool_messages.append(
                     Message(
                         role="tool",

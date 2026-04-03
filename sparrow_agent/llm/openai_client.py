@@ -99,7 +99,15 @@ class OpenAIResponsesModelClient:
         history = [OpenAIResponsesModelClient._map_message(message) for message in ctx.messages[-16:]]
         history.extend(OpenAIResponsesModelClient._map_message(message) for message in ctx.loop_state.observations)
         history.append({"role": "user", "content": ctx.user_input})
-        return history
+        return OpenAIResponsesModelClient._filter_orphan_tool_outputs(history)
+
+    @staticmethod
+    def _filter_orphan_tool_outputs(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        call_ids = {m["call_id"] for m in messages if m.get("type") == "function_call"}
+        return [
+            m for m in messages
+            if m.get("type") != "function_call_output" or m.get("call_id") in call_ids
+        ]
 
     @staticmethod
     def _build_tools(tool_definitions: list[ToolDefinition]) -> list[dict[str, Any]]:
@@ -115,6 +123,13 @@ class OpenAIResponsesModelClient:
 
     @staticmethod
     def _map_message(message: Message) -> dict[str, Any]:
+        if message.role == "function_call":
+            return {
+                "type": "function_call",
+                "call_id": str(message.metadata.get("tool_call_id", "")),
+                "name": message.name or "",
+                "arguments": message.content,
+            }
         if message.role == "tool":
             tool_call_id = str(message.metadata.get("tool_call_id", "")).strip()
             if tool_call_id:

@@ -11,7 +11,7 @@ def utc_now() -> datetime:
 
 
 class Message(BaseModel):
-    role: Literal["system", "user", "assistant", "tool"] = "user"
+    role: Literal["system", "user", "assistant", "tool", "function_call"] = "user"
     content: str
     created_at: datetime = Field(default_factory=utc_now)
     name: str | None = None

@@ -116,6 +116,8 @@ def test_runtime_runs_react_tool_loop(tmp_path: Path) -> None:
     assert result.used_tools == ["echo"]
     assert result.iterations == 2
     assert any(message.role == "tool" and message.content == "tool hi" for message in result.messages)
+    # Verify function_call message is also persisted alongside tool result
+    assert any(message.role == "function_call" and message.name == "echo" for message in result.messages)
 
 
 def test_runtime_refreshes_documents_after_memory_mutation_tool(tmp_path: Path) -> None:

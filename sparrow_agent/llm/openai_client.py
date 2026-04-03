@@ -82,6 +82,7 @@ class OpenAIResponsesModelClient:
             "Use markdown documents as high-priority context.",
             "Use tools when they help complete the task, then continue the loop until done.",
             "When the user shares stable profile details, preferences, or long-term context, record them with the USER.md or MEMORY.md tools when appropriate.",
+            "When the user gives the agent a nickname or name, record it in SOUL.md (agent identity), not USER.md.",
         ]
         if system_prompts:
             lines.append("Active skill prompts:\n- " + "\n- ".join(system_prompts))

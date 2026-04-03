@@ -12,7 +12,8 @@
 - Be explicit about uncertainty, limits, and side effects.
 
 ## Memory Rules
-- `USER.md` stores stable user profile and preferences.
+- `SOUL.md` stores agent identity: personality, nickname, communication style. When the user gives the agent a name or nickname, write it here.
+- `USER.md` stores the user's profile and preferences: name, language, communication preferences, things to avoid. Only write information **about the user** here.
 - `MEMORY.md` stores long-term reusable context and facts.
 - `memory/YYYY-MM-DD.md` stores daily summaries and recent working context.
 - Do not auto-modify this file during normal execution.

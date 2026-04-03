@@ -83,10 +83,11 @@ def build_startup_banner(*, width: int | None = None, color: bool = False) -> st
         return "\n".join((title, subtitle))
 
     bird = [
-        _style("   __", BRAND_SAGE, color),
-        _style(" __(o )>", BRAND_SAGE, color),
-        _style(" \\ <_. )", BRAND_SAGE, color),
-        _style("  `---'", BRAND_SAGE, color),
+        _style("        ___", BRAND_SAGE, color),
+        _style("    ___( o)>", BRAND_SAGE, color),
+        _style("   /   ~~~", BRAND_SAGE, color),
+        _style("  '---'", BRAND_SAGE, color),
+        _style("    ''", BRAND_SAGE, color),
     ]
     wordmark = [
         _style("Sparrow", BRAND_INK, color) + " " + _style("Agent", BRAND_TEAL, color),
@@ -94,9 +95,10 @@ def build_startup_banner(*, width: int | None = None, color: bool = False) -> st
     ]
     lines = [
         f"{bird[0]}",
-        f"{bird[1]}  {wordmark[0]}",
-        f"{bird[2]}  {wordmark[1]}",
-        f"{bird[3]}",
+        f"{bird[1]}",
+        f"{bird[2]}       {wordmark[0]}",
+        f"{bird[3]}       {wordmark[1]}",
+        f"{bird[4]}",
     ]
     return "\n".join(lines)
 

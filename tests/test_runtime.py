@@ -5,7 +5,7 @@ from pathlib import Path
 from sparrow_agent.core.runtime import AgentRuntime
 from sparrow_agent.llm.base import EchoModelClient
 from sparrow_agent.memory.store import MemoryStore
-from sparrow_agent.schemas.models import LLMResponse, ToolCallRequest
+from sparrow_agent.schemas.models import LLMResponse, RuntimeContext, ToolCallRequest, ToolDefinition
 from sparrow_agent.storage.file_store import FileStore
 
 
@@ -39,6 +39,42 @@ def build_runtime(tmp_path: Path, model_client=None, memory_window: int = 100) -
         model_client=model_client or EchoModelClient(),
         memory_window=memory_window,
     )
+
+
+class MemoryRefreshCheckModelClient:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.seen_user_docs: list[str] = []
+
+    def generate(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+    ) -> LLMResponse:
+        del system_prompts, tool_definitions
+        self.calls += 1
+        user_doc = next((item.content for item in ctx.documents if item.kind == "user"), "")
+        self.seen_user_docs.append(user_doc)
+        if self.calls == 1:
+            return LLMResponse(
+                tool_calls=[
+                    ToolCallRequest(
+                        id="call_patch_1",
+                        name="patch_memory_doc",
+                        arguments={
+                            "document": "user",
+                            "operation": "upsert_kv",
+                            "heading": "Profile",
+                            "key": "Preferred name",
+                            "value": "Meng",
+                        },
+                    )
+                ],
+                finish_reason="tool_calls",
+            )
+        status = "updated" if "Preferred name: Meng" in user_doc else "stale"
+        return LLMResponse(content=status, finish_reason="stop")
 
 
 def test_runtime_returns_model_reply_with_documents(tmp_path: Path) -> None:
@@ -80,6 +116,29 @@ def test_runtime_runs_react_tool_loop(tmp_path: Path) -> None:
     assert result.used_tools == ["echo"]
     assert result.iterations == 2
     assert any(message.role == "tool" and message.content == "tool hi" for message in result.messages)
+
+
+def test_runtime_refreshes_documents_after_memory_mutation_tool(tmp_path: Path) -> None:
+    model_client = MemoryRefreshCheckModelClient()
+    runtime = build_runtime(tmp_path, model_client=model_client)
+    runtime.file_store.write_document(
+        runtime.file_store.user_doc_path,
+        (
+            "# USER\n\n"
+            "## Profile\n"
+            "- Preferred name: Unknown\n"
+            "- Language: Chinese\n\n"
+            "## Preferences\n"
+            "- Communication style: Concise and direct\n"
+        ),
+    )
+
+    result = runtime.run_turn(session_id="demo", user_input="以后叫我猛哥")
+
+    assert result.reply == "updated"
+    assert len(model_client.seen_user_docs) >= 2
+    assert "Preferred name: Unknown" in model_client.seen_user_docs[0]
+    assert "Preferred name: Meng" in model_client.seen_user_docs[1]
 
 
 def test_runtime_consolidates_long_history(tmp_path: Path) -> None:

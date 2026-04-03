@@ -34,62 +34,70 @@ def build_store(tmp_path):
 def test_memory_tools_update_markdown_docs(tmp_path) -> None:
     store = build_store(tmp_path)
     store.ensure_core_documents()
+    store.write_document(
+        store.user_doc_path,
+        (
+            "# USER\n\n"
+            "## Profile\n"
+            "- Preferred name: Unknown\n"
+            "- Language: Chinese\n\n"
+            "## Preferences\n"
+            "- Communication style: Concise and direct\n\n"
+            "## Current Priorities\n"
+            "- Primary uses: Not provided yet.\n"
+        ),
+    )
+    store.write_document(
+        store.memory_doc_path,
+        (
+            "# MEMORY\n\n"
+            "## Long-Term Facts\n"
+            "- No long-term facts captured yet.\n\n"
+            "## Ongoing Context\n"
+            "- No ongoing context captured yet.\n\n"
+            "## Working Notes\n"
+            "- No reusable working notes captured yet.\n"
+        ),
+    )
     tools = {tool.definition().name: tool for tool in build_memory_tools(store)}
     ctx = RuntimeContext(session_id="demo", user_input="hello", messages=[], memories=[], active_skills=[], loop_state=LoopState())
 
-    baseline_docs = {
-        "user": store.read_document(store.user_doc_path),
-        "memory": store.read_document(store.memory_doc_path),
-        "daily": store.read_document(store.get_daily_memory_path()),
-    }
+    tools["patch_memory_doc"].execute(
+        {
+            "document": "user",
+            "operation": "upsert_kv",
+            "heading": "Profile",
+            "key": "Preferred name",
+            "value": "Meng",
+        },
+        ctx,
+    )
+    tools["patch_memory_doc"].execute(
+        {
+            "document": "memory",
+            "operation": "upsert_bullet",
+            "heading": "Long-Term Facts",
+            "value": "Sparrow Agent uses markdown memory.",
+        },
+        ctx,
+    )
+    tools["patch_memory_doc"].execute(
+        {
+            "document": "memory",
+            "operation": "insert_after_heading",
+            "heading": "Working Notes",
+            "text": "A freeform memory sentence without key.",
+        },
+        ctx,
+    )
+    tools["append_daily_memory"].execute({"content": "Discussed architecture."}, ctx)
+    result = tools["propose_soul_patch"].execute({"content": "Prefer direct conclusions first."}, ctx)
 
-    proposal_paths: list[str] = []
-    success_count = 0
-    for tool in tools.values():
-        try:
-            result = tool.execute({"content": "User prefers bullet lists."}, ctx)
-            path = str(result.metadata.get("path", ""))
-            if path:
-                proposal_paths.append(path)
-            success_count += 1
-        except Exception:
-            continue
-
-    for tool in tools.values():
-        try:
-            result = tool.execute({"content": "Sparrow Agent uses markdown memory."}, ctx)
-            path = str(result.metadata.get("path", ""))
-            if path:
-                proposal_paths.append(path)
-            success_count += 1
-        except Exception:
-            continue
-
-    for tool in tools.values():
-        try:
-            result = tool.execute({"content": "Discussed architecture."}, ctx)
-            path = str(result.metadata.get("path", ""))
-            if path:
-                proposal_paths.append(path)
-            success_count += 1
-        except Exception:
-            continue
-
-    for tool in tools.values():
-        try:
-            result = tool.execute({"content": "Prefer direct conclusions first."}, ctx)
-            path = str(result.metadata.get("path", ""))
-            if path:
-                proposal_paths.append(path)
-            success_count += 1
-        except Exception:
-            continue
-
-    updated_docs = {
-        "user": store.read_document(store.user_doc_path),
-        "memory": store.read_document(store.memory_doc_path),
-        "daily": store.read_document(store.get_daily_memory_path()),
-    }
-    assert success_count > 0
-    assert updated_docs != baseline_docs
-    assert any(path.endswith(".proposal.md") for path in proposal_paths)
+    user_doc = store.read_document(store.user_doc_path)
+    memory_doc = store.read_document(store.memory_doc_path)
+    assert "- Preferred name: Meng" in user_doc
+    assert user_doc.count("Preferred name:") == 1
+    assert "markdown memory" in store.read_document(store.memory_doc_path)
+    assert "A freeform memory sentence without key." in memory_doc
+    assert "Discussed architecture." in store.read_document(store.get_daily_memory_path())
+    assert result.metadata["path"].endswith(".proposal.md")

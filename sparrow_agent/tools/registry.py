@@ -21,6 +21,12 @@ class ToolRegistry:
     def list_definitions(self) -> list[ToolDefinition]:
         return [tool.definition() for _, tool in sorted(self._tools.items())]
 
+    def get_definition(self, name: str) -> ToolDefinition | None:
+        tool = self.get(name)
+        if tool is None:
+            return None
+        return tool.definition()
+
     def execute(self, name: str, input_data: dict, ctx: RuntimeContext) -> ToolResult:
         tool = self.get(name)
         if tool is None:

@@ -95,7 +95,7 @@ class OpenAIResponsesModelClient:
         return "\n\n".join(lines)
 
     @staticmethod
-    def _build_input_messages(ctx: RuntimeContext) -> list[dict[str, str]]:
+    def _build_input_messages(ctx: RuntimeContext) -> list[dict[str, Any]]:
         history = [OpenAIResponsesModelClient._map_message(message) for message in ctx.messages[-16:]]
         history.extend(OpenAIResponsesModelClient._map_message(message) for message in ctx.loop_state.observations)
         history.append({"role": "user", "content": ctx.user_input})
@@ -114,10 +114,19 @@ class OpenAIResponsesModelClient:
         ]
 
     @staticmethod
-    def _map_message(message: Message) -> dict[str, str]:
+    def _map_message(message: Message) -> dict[str, Any]:
+        if message.role == "tool":
+            tool_call_id = str(message.metadata.get("tool_call_id", "")).strip()
+            if tool_call_id:
+                return {
+                    "type": "function_call_output",
+                    "call_id": tool_call_id,
+                    "output": message.content,
+                }
+            # Backward compatibility for older session entries without tool_call_id.
+            return {"role": "assistant", "content": message.content}
+
         role = message.role
-        if role == "tool":
-            role = "assistant"
         if role not in {"user", "assistant"}:
             role = "assistant"
         return {"role": role, "content": message.content}

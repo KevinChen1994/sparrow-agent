@@ -114,6 +114,35 @@ def test_openai_client_uses_responses_api() -> None:
     assert call["previous_response_id"] == "resp_prev"
 
 
+def test_openai_client_maps_tool_message_to_function_call_output() -> None:
+    fake_client = FakeOpenAIClient()
+    client = OpenAIResponsesModelClient(api_key="test", model="gpt-test", client=fake_client)
+    ctx = RuntimeContext(
+        session_id="demo",
+        user_input="continue",
+        messages=[
+            Message(
+                role="tool",
+                name="read_file",
+                content="file content",
+                metadata={"tool_call_id": "call_tool_123"},
+            )
+        ],
+        memories=[],
+        active_skills=[],
+    )
+
+    client.generate(ctx=ctx, system_prompts=[])
+
+    call = fake_client.responses.calls[0]
+    assert call["input"][0] == {
+        "type": "function_call_output",
+        "call_id": "call_tool_123",
+        "output": "file content",
+    }
+    assert call["input"][-1] == {"role": "user", "content": "continue"}
+
+
 def test_openai_client_includes_reasoning_effort() -> None:
     fake_client = FakeOpenAIClient()
     client = OpenAIResponsesModelClient(

@@ -8,9 +8,6 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 WORKSPACE_ROOT = ROOT_DIR
 DATA_DIR = ROOT_DIR / "data"
-SESSIONS_DIR = DATA_DIR / "sessions"
-MEMORIES_DIR = DATA_DIR / "memories"
-LOGS_DIR = DATA_DIR / "logs"
 CONFIG_DIR = DATA_DIR / "config"
 OPENAI_CONFIG_PATH = CONFIG_DIR / "openai.json"
 
@@ -21,6 +18,9 @@ SOUL_DOC_PATH = RUNTIME_DIR / "SOUL.md"
 USER_DOC_PATH = RUNTIME_DIR / "USER.md"
 MEMORY_DOC_PATH = RUNTIME_DIR / "MEMORY.md"
 DAILY_MEMORY_DIR = RUNTIME_DIR / "memory"
+SESSIONS_DIR = RUNTIME_DIR / "sessions"
+MEMORIES_DIR = RUNTIME_DIR / "memories"
+LOGS_DIR = RUNTIME_DIR / "logs"
 
 DEFAULT_AGENTS_DOC = """# AGENTS
 
@@ -57,7 +57,7 @@ DEFAULT_MEMORY_DOC = """# MEMORY
 
 
 def ensure_data_dirs() -> None:
-    for path in (SESSIONS_DIR, MEMORIES_DIR, LOGS_DIR, CONFIG_DIR, RUNTIME_DIR, DAILY_MEMORY_DIR):
+    for path in (CONFIG_DIR, RUNTIME_DIR, DAILY_MEMORY_DIR, SESSIONS_DIR, MEMORIES_DIR, LOGS_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 

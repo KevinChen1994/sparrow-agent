@@ -34,6 +34,14 @@ def test_memory_tools_update_markdown_docs(tmp_path) -> None:
     store = build_store(tmp_path)
     store.ensure_core_documents()
     store.write_document(
+        store.soul_doc_path,
+        (
+            "# SOUL\n\n"
+            "## Communication Style\n"
+            "- Prefer concrete actions over abstract discussion.\n"
+        ),
+    )
+    store.write_document(
         store.user_doc_path,
         (
             "# USER\n\n"
@@ -60,6 +68,7 @@ def test_memory_tools_update_markdown_docs(tmp_path) -> None:
     )
     tools = {tool.definition().name: tool for tool in build_memory_tools(store)}
     ctx = RuntimeContext(session_id="demo", user_input="hello", messages=[], active_skills=[], loop_state=LoopState())
+    assert tools["propose_soul_patch"].definition().requires_confirmation is False
 
     tools["patch_memory_doc"].execute(
         {
@@ -99,4 +108,5 @@ def test_memory_tools_update_markdown_docs(tmp_path) -> None:
     assert "markdown memory" in store.read_document(store.memory_doc_path)
     assert "A freeform memory sentence without key." in memory_doc
     assert "Discussed architecture." in store.read_document(store.get_daily_memory_path())
-    assert result.metadata["path"].endswith(".proposal.md")
+    assert result.metadata["path"].endswith("SOUL.md")
+    assert "Prefer direct conclusions first." in store.read_document(store.soul_doc_path)

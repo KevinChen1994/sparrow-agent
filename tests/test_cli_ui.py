@@ -6,12 +6,14 @@ import time
 from apps.cli.ui import (
     build_startup_banner,
     format_agent_reply,
+    format_trace_steps_text,
     format_turn_meta,
+    format_user_turn,
     render_startup_banner,
     render_turn,
     run_with_spinner,
 )
-from sparrow_agent.schemas.models import LLMResponse, TurnResult
+from sparrow_agent.schemas.models import LLMResponse, TraceStep, TurnResult
 
 
 def test_run_with_spinner_renders_progress_for_slow_task() -> None:
@@ -68,6 +70,20 @@ def test_render_turn_uses_terminal_style_layout() -> None:
 
     assert stream.getvalue() == "sparrow>\n  line 1\n  line 2\n"
     assert format_agent_reply("single line") == "  single line"
+
+
+def test_format_user_turn_and_trace_steps_text() -> None:
+    trace_steps = [
+        TraceStep(index=1, phase="plan", title="Iteration 1", detail="reasoning"),
+        TraceStep(index=2, phase="respond", title="Generated response"),
+    ]
+
+    assert format_user_turn("hello\nworld") == "you>\n  hello\n  world"
+    assert format_trace_steps_text(trace_steps) == (
+        "thinking>\n"
+        "  [1] plan: Iteration 1 - reasoning\n"
+        "  [2] respond: Generated response"
+    )
 
 
 def test_build_startup_banner_has_wide_and_compact_variants() -> None:

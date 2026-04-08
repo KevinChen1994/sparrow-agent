@@ -18,12 +18,19 @@ Sparrow Agent is a lightweight Python single-agent runtime with:
 ```bash
 uv venv sparrow_env
 source sparrow_env/bin/activate
-uv pip install -e .[dev]
+uv pip install -e '.[dev]'
 python -m apps.cli.main --session-id demo
 uvicorn apps.server.main:app --reload
 ```
 
 All commands should be run inside this project environment after activation.
+
+CLI controls:
+
+- `Enter` sends the current message
+- `Esc+Enter` inserts a newline inside the input box
+- `Ctrl+T` toggles the thinking panel
+- `Ctrl+C` exits the CLI
 
 ### OpenAI Configuration
 
@@ -35,6 +42,7 @@ Environment variables:
 export OPENAI_API_KEY="sk-..."
 export OPENAI_MODEL="gpt-5.2"
 export OPENAI_REASONING_EFFORT="medium"
+export OPENAI_TIMEOUT_SECONDS="120"
 ```
 
 Local config file:
@@ -45,7 +53,8 @@ Local config file:
   "model": "gpt-5.2",
   "base_url": "",
   "reasoning_effort": "medium",
-  "max_output_tokens": 4000
+  "max_output_tokens": 4000,
+  "timeout_seconds": 120
 }
 ```
 

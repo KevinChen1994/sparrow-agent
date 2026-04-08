@@ -80,5 +80,6 @@ def load_openai_settings() -> dict[str, str]:
         "base_url": os.getenv("OPENAI_BASE_URL", file_settings.get("base_url", "")),
         "reasoning_effort": os.getenv("OPENAI_REASONING_EFFORT", file_settings.get("reasoning_effort", "")),
         "max_output_tokens": os.getenv("OPENAI_MAX_OUTPUT_TOKENS", str(file_settings.get("max_output_tokens", ""))),
+        "timeout_seconds": os.getenv("OPENAI_TIMEOUT_SECONDS", str(file_settings.get("timeout_seconds", ""))),
     }
     return {key: value for key, value in settings.items() if value}

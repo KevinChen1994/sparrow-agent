@@ -1,238 +1,146 @@
 # Sparrow Agent
 
-## Project Positioning
+## Project Definition
 
 Sparrow Agent is a lightweight personal Agent kernel.
 
-It is not trying to become a large Agent platform, a general-purpose Agent framework, or a heavy runtime system.
+It is for:
 
-Its main job is to provide a strong local-first single-Agent core for personal assistant use cases:
-
-- a practical multi-step ReAct loop
-- inspectable markdown-based memory
-- thin CLI and Web shells around one shared runtime
-- controlled tool use
-
-## Architectural Identity
-
-This repository mainly belongs to the Agent-kernel layer, with a small product shell around it.
-
-It is closer to:
-
-- a lightweight personal Agent kernel
 - a local-first single-Agent runtime
-- an opinionated core for a personal assistant
+- a practical multi-step ReAct loop
+- markdown-based memory that stays inspectable
+- thin CLI and Web shells on one shared core
+- controlled and reliable tool use
 
-It is not primarily:
+It is not for:
 
-- a pure framework layer
-- a general runtime/platform layer
+- a multi-Agent orchestration system
+- a workflow engine
+- a plugin marketplace
+- a cloud runtime platform
+- a general framework for every Agent use case
 
 ## Product Direction
 
-The project should stay focused on one outcome:
+Keep the project focused on one outcome:
 
-Build a small but capable personal Agent that gets better through use, without becoming operationally heavy.
+Build a small but capable personal Agent that gets better through use without becoming operationally heavy.
 
-The main sources of value should be:
+Near-term priorities:
 
-- stronger single-Agent task completion
-- better personalization
-- better markdown memory quality
-- better tool-use reliability
+1. Make the project runnable end-to-end.
+2. Improve markdown memory quality.
+3. Strengthen runtime governance and observability.
+4. Keep adapters in `apps/` thin.
+5. Improve tool-use safety and reliability.
 
-## Product Shell Direction
+## Working Workflow
 
-The current product-shell direction is:
+Start work in this order:
 
-- CLI is the primary way users should use Sparrow Agent.
-- Web should stay a thin control console around the shared runtime.
-- Web is for session visibility, review, confirmation, progress, and memory inspection.
-- Web should not become a separate full product or absorb core Agent logic.
-- IM-based control is a promising later direction, but it is not the current primary mode.
-- Keep one shared runtime and keep adapters in `apps/` thin.
+1. Read `AGENTS.md`.
+2. Read the relevant document in `docs/`.
+3. Read `README.md` before running or validating anything.
 
-## AI-First Development Strategy
-
-This project is developed in an AI-first way.
-
-The main constraint of AI-first development is limited context. Important instructions, decisions, and unfinished ideas cannot rely on chat memory alone. They must be written into project documents so future sessions can recover state reliably.
-
-Because of that, this repository uses documentation as long-term project memory.
-
-The intended workflow is:
-
-1. Read `AGENTS.md` first at the beginning of development work.
-2. Use `AGENTS.md` as the project overall and document directory.
-3. When a task requires more detail, jump from `AGENTS.md` to the relevant document in `docs/`.
-4. Write new decisions, plans, and deferred ideas back into documents instead of relying on temporary conversation context.
+Documentation is the long-term memory for development work. Important decisions, plans, and deferred ideas must be written down instead of left in chat history.
 
 ## Environment Rule
 
-Before active development, testing, or runtime verification, the project environment should be set up from `README.md`.
+`README.md` is the source of truth for environment setup.
 
-This applies both to:
+Before development, testing, or runtime verification:
 
-- project users running Sparrow Agent
-- future AI development sessions working in this repository
-
-Working rule:
-
-- treat `README.md` as the source of truth for environment setup
-- establish the project environment first
-- run future commands, tests, CLI checks, and server checks inside that configured environment
-- avoid mixing project execution with an unprepared system environment when validating behavior
-
-## Near-Term Priorities
-
-Prefer depth over breadth.
-
-Near-term development should prioritize:
-
-1. Strengthening the shared single-Agent loop in `sparrow_agent/core/`.
-2. Improving markdown memory promotion, recall, and consolidation.
-3. Making bootstrap and personalization flows explicit and reliable.
-4. Adding tool governance such as confirmation and mutation boundaries.
-5. Keeping adapters in `apps/` thin and the kernel reusable.
-
-## Current Execution Strategy
-
-The current execution strategy is:
-
-1. First make the whole project runnable end-to-end.
-2. After the runtime and product shell are in a usable state, introduce explicit ToDo management for deferred work.
-3. Keep using documents to preserve direction, progress, and deferred ideas across AI sessions.
-
-This means ToDo management is planned, but it is not the first milestone. The first milestone is getting the project to run cleanly and reliably.
+- set up the project environment from `README.md`
+- run validation inside that environment
+- avoid mixing checks with an unprepared system environment
 
 ## Document System
 
-`AGENTS.md` is the documentation entry point for this repository.
+`AGENTS.md` is the entry point for development-management documents.
 
-It serves two roles:
-
-- the overall description of what Sparrow Agent is and is not
-- the directory for project documents and how they should be used
-
-### Document Reading Order
-
-When working on this repository for development and project management, prefer this reading order:
-
-1. `AGENTS.md`
-2. relevant document in `docs/`
-3. `README.md` for run/use instructions
-
-Runtime documents under `.sparrow/` are for Agent execution and personalization. They are not part of the development-management document system.
-
-### Document Directory
-
-#### Root project documents
+### Root Documents
 
 - `AGENTS.md`
-  The overall project definition, working rules, and document index. Read first.
+  High-level project definition, document rules, and links to the current plan.
 - `README.md`
-  The operator-facing run and usage document.
+  Operator-facing setup and run instructions.
 
-#### `docs/`
-
-`docs/` is the project management and design space for development documents.
-
-Current and planned structure:
+### `docs/`
 
 - `docs/plans/`
-  Architecture, implementation, and staged development plans.
+  Active plans, design notes that still matter, and staged execution documents.
 - `docs/todos/`
-  Deferred ideas and work items that are intentionally not being done yet.
+  Deferred work that is intentionally not on the current path.
 - `docs/reviews/`
-  Optional future space for design reviews, retrospectives, or implementation audits if needed.
+  Optional space for audits or retrospectives when needed.
 
-#### Runtime documents
+### Runtime Documents
 
-These documents are for Sparrow Agent runtime behavior, not for managing development work:
+Runtime documents under `.sparrow/` are not part of development management.
 
 - `.sparrow/AGENTS.md`
-  Runtime operating instructions used by the agent: how it should work in this workspace.
+  Runtime operating rules.
 - `.sparrow/SOUL.md`
-  Agent persona, tone, and behavioral boundaries used at runtime.
+  Runtime persona and tone.
 - `.sparrow/USER.md`
-  Stable runtime user profile, preferences, and user-specific context.
+  Stable user profile and preferences.
 - `.sparrow/MEMORY.md`
-  Long-term runtime memory.
+  Durable runtime memory.
 - `.sparrow/memory/`
-  Daily runtime memory and short-term memory artifacts.
+  Daily runtime working memory.
 
-### Document Responsibilities
+## Document Responsibilities
 
-- Use `AGENTS.md` for project overall, working rules, and document navigation.
-- Use `docs/plans/` for active or authoritative development plans.
-- Use `docs/todos/` for backlog items, deferred ideas, and non-immediate development work.
-- Do not use runtime documents under `.sparrow/` to manage project development.
-- Use runtime documents only for Agent execution context and personalization behavior.
-- `.sparrow/AGENTS.md` is for operating instructions.
-- `.sparrow/SOUL.md` is for persona, tone, and boundaries.
-- `.sparrow/USER.md` is for who the user is.
+Keep document ownership simple:
 
-## Planning Rules
+- `AGENTS.md` stores stable project-level rules and document boundaries.
+- `docs/plans/` stores active execution direction and non-trivial design decisions.
+- `docs/todos/` stores ideas that are useful later but not active now.
+- runtime documents under `.sparrow/` store runtime context only.
 
-When a new idea appears during development:
+## Documentation Rules
 
-- if it affects the current execution path, put it into an active plan under `docs/plans/`
-- if it is useful but not for now, record it later in `docs/todos/`
-- do not rely on conversation history alone for important project direction
+All project documents should stay short, explicit, and low-ceremony.
 
-When a new session starts:
+Rules:
 
-- re-read `AGENTS.md`
-- identify the relevant detailed document
-- continue from documents, not from assumptions about prior chat context
+- One document should have one clear job.
+- Prefer short sections and bullets over long prose.
+- Put stable rules in `AGENTS.md`, not in plan files.
+- Put active execution detail in one current plan, not in multiple overlapping documents.
+- Put deferred ideas in `docs/todos/`, not inside active plans.
+- Do not repeat project positioning, document boundaries, or priority lists across files unless they are truly different.
+- When updating direction, edit the current authoritative document instead of creating a near-duplicate.
+- If a document starts mixing overview, plan, and backlog, split it by responsibility.
+- If a section does not change implementation decisions, shorten it or remove it.
 
-## Current Document Focus
+Preferred style:
 
-At the moment, the main project-management document area is:
+- start with the conclusion
+- keep headings literal
+- keep lists flat
+- record decisions in plain language
+- avoid speculative detail
 
-- `docs/plans/`
+## Current Active Plan
 
-### Current Active Development Plan
-
-The current active development plan is:
+Current execution lives in:
 
 - `docs/plans/2026-03-20-sparrow-agent-next-development-plan.md`
 
-The currently approved execution order is:
+Approved order:
 
-1. Make the project genuinely runnable end-to-end through explicit bootstrap and review flow.
-2. Improve markdown memory quality and promotion logic.
-3. Strengthen ReAct runtime governance and observability.
-4. Upgrade consolidation toward compact-ready memory management.
-5. Improve thin product shells in CLI and Web.
-6. Clean up tool governance and installation workflow.
-
-The immediate next documentation evolution is:
-
-- keep explicit ToDo tracking under `docs/todos/` for deferred work
-
-Until then:
-
-- keep `AGENTS.md` as the stable high-level guide
-- keep active implementation direction in `docs/plans/`
-
-## Non-Goals
-
-Do not turn Sparrow Agent into:
-
-- a multi-Agent orchestration system
-- a workflow DAG engine
-- a plugin marketplace
-- a cloud-native runtime platform
-- a generic framework for every Agent use case
+1. Make bootstrap and review flow runnable end-to-end.
+2. Improve memory quality and promotion logic.
+3. Strengthen runtime governance and observability.
+4. Upgrade consolidation and context control.
+5. Improve thin CLI and Web shells.
+6. Clean up tool governance and installation flow.
 
 ## Working Rules
 
-- Prefer changes that make the personal Agent kernel stronger, more personal, or more reliable.
-- Avoid infrastructure expansion that does not improve the core Agent experience.
-- Keep adapters thin; push core behavior into shared runtime code.
-- Treat `AGENTS.md` and `docs/` as the development-management document system.
-- Treat runtime documents under `.sparrow/` as runtime context only.
-- Treat documentation as persistent project memory for AI-driven development.
-- Prefer writing down plans and deferred work rather than depending on chat context.
-- Configure the project environment from `README.md` before execution, and prefer running all validation inside that environment.
+- Prefer depth over breadth.
+- Strengthen the personal Agent kernel before expanding scope.
+- Keep core behavior in `sparrow_agent/core/`.
+- Keep adapters in `apps/` thin and shared-runtime driven.
+- Prefer documentation that helps the next session recover context quickly.

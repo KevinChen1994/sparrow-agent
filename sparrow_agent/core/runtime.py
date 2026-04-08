@@ -114,11 +114,34 @@ class AgentRuntime:
 
         user_message = Message(role="user", content=user_input)
         session.messages.append(user_message)
+        session.updated_at = datetime.now(timezone.utc)
+        self.file_store.save_session(session)
+        self.file_store.append_log(
+            {
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "session_id": session_id,
+                "status": "started",
+                "user_input": user_input,
+            }
+        )
 
         if user_input.strip() == "/stop":
             assistant_message = Message(role="assistant", content="Stopped current task.")
             session.messages.append(assistant_message)
             self.file_store.save_session(session)
+            self.file_store.append_log(
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "session_id": session_id,
+                    "status": "completed",
+                    "user_input": user_input,
+                    "reply": assistant_message.content,
+                    "used_skills": [],
+                    "used_tools": [],
+                    "llm_response": None,
+                    "consolidation": None,
+                }
+            )
             return TurnResult(
                 session_id=session_id,
                 reply=assistant_message.content,
@@ -135,6 +158,7 @@ class AgentRuntime:
                 {
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "session_id": session_id,
+                    "status": "completed",
                     "user_input": user_input,
                     "reply": bootstrap_reply.reply,
                     "used_skills": [],
@@ -225,6 +249,7 @@ class AgentRuntime:
             {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "session_id": session_id,
+                "status": "completed",
                 "user_input": user_input,
                 "reply": reply_text,
                 "used_skills": active_skill_names,

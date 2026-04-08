@@ -15,6 +15,7 @@ class OpenAIResponsesModelClient:
         base_url: str | None = None,
         reasoning_effort: str | None = None,
         max_output_tokens: int | None = None,
+        timeout_seconds: float | None = 120.0,
         client: object | None = None,
     ) -> None:
         self.api_key = api_key
@@ -22,6 +23,7 @@ class OpenAIResponsesModelClient:
         self.base_url = base_url
         self.reasoning_effort = reasoning_effort
         self.max_output_tokens = max_output_tokens
+        self.timeout_seconds = timeout_seconds
         self.client = client or self._build_client()
 
     def _build_client(self) -> object:
@@ -54,6 +56,8 @@ class OpenAIResponsesModelClient:
             request["reasoning"] = {"effort": self.reasoning_effort}
         if self.max_output_tokens is not None:
             request["max_output_tokens"] = self.max_output_tokens
+        if self.timeout_seconds is not None:
+            request["timeout"] = self.timeout_seconds
         if ctx.previous_response_id:
             request["previous_response_id"] = ctx.previous_response_id
 
@@ -247,4 +251,5 @@ def build_default_model_client():
         base_url=settings.get("base_url"),
         reasoning_effort=settings.get("reasoning_effort"),
         max_output_tokens=int(settings["max_output_tokens"]) if settings.get("max_output_tokens") else None,
+        timeout_seconds=float(settings["timeout_seconds"]) if settings.get("timeout_seconds") else 120.0,
     )

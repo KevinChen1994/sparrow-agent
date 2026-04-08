@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from sparrow_agent.core.runtime import AgentRuntime
@@ -106,6 +107,17 @@ class MemoryRefreshCheckModelClient:
         return LLMResponse(content=status, finish_reason="stop")
 
 
+class FailingModelClient:
+    def generate(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+    ) -> LLMResponse:
+        del ctx, system_prompts, tool_definitions
+        raise RuntimeError("simulated model failure")
+
+
 def test_runtime_returns_model_reply_with_documents(tmp_path: Path) -> None:
     runtime = build_runtime(tmp_path)
 
@@ -194,6 +206,24 @@ def test_runtime_file_tools_still_use_workspace_root(tmp_path: Path) -> None:
     result = runtime.run_turn(session_id="demo", user_input='/tool read_file {"path":"README.md"}')
 
     assert result.reply == "workspace file"
+
+
+def test_runtime_persists_user_message_and_started_log_before_model_returns(tmp_path: Path) -> None:
+    runtime = build_runtime(tmp_path, model_client=FailingModelClient())
+
+    try:
+        runtime.run_turn(session_id="demo", user_input="persist this")
+    except RuntimeError as exc:
+        assert str(exc) == "simulated model failure"
+    else:
+        raise AssertionError("Expected runtime to surface model failure.")
+
+    session = runtime.file_store.load_session("demo")
+    assert any(message.role == "user" and message.content == "persist this" for message in session.messages)
+
+    log_path = next((tmp_path / ".sparrow" / "logs").glob("*.jsonl"))
+    log_lines = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+    assert any(line["status"] == "started" and line["user_input"] == "persist this" for line in log_lines)
 
 
 def test_runtime_start_session_returns_onboarding_prompt_for_default_user_doc(tmp_path: Path) -> None:

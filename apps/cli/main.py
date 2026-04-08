@@ -1,10 +1,19 @@
 from __future__ import annotations
 
 import queue
+import sys
 
 import typer
 
-from apps.cli.ui import render_startup_banner, render_trace_steps, render_turn, run_with_spinner
+from apps.cli.ui import (
+    EXIT_COMMANDS,
+    SparrowCLIApp,
+    render_startup_banner,
+    render_trace_steps,
+    render_turn,
+    run_with_spinner,
+    supports_interactive_cli,
+)
 from sparrow_agent.core.runtime import AgentRuntime
 from sparrow_agent.schemas.models import TraceStep
 
@@ -14,11 +23,20 @@ app = typer.Typer(add_completion=False)
 @app.command()
 def main(session_id: str = typer.Option("default", help="Session identifier.")) -> None:
     runtime = AgentRuntime()
+    if supports_interactive_cli():
+        SparrowCLIApp(runtime, session_id=session_id).run()
+        return
+
+    _run_basic_cli(runtime, session_id=session_id)
+
+
+def _run_basic_cli(runtime: AgentRuntime, *, session_id: str) -> None:
     thinking_enabled = False
     trace_queue: "queue.Queue[str]" = queue.Queue()
     render_startup_banner()
     typer.echo(f"session={session_id} | type 'exit' to quit.")
-    typer.echo("thinking=OFF | press Ctrl+T while model is thinking to toggle.")
+    if sys.stdin.isatty():
+        typer.echo("thinking=OFF | press Ctrl+T while model is thinking to toggle.")
     started = runtime.start_session(session_id=session_id)
     if started.reply:
         render_turn(started)
@@ -39,13 +57,13 @@ def main(session_id: str = typer.Option("default", help="Session identifier.")) 
 
     while True:
         user_input = typer.prompt("you")
-        if user_input.strip().lower() in {"exit", "quit"}:
+        if user_input.strip().lower() in EXIT_COMMANDS:
             typer.echo("bye")
             break
         result = run_with_spinner(
             lambda: runtime.run_turn(session_id=session_id, user_input=user_input, trace_callback=enqueue_trace),
             label="thinking",
-            key_handler=handle_keypress,
+            key_handler=handle_keypress if sys.stdin.isatty() else None,
             trace_queue=trace_queue,
             trace_enabled_getter=lambda: thinking_enabled,
         )

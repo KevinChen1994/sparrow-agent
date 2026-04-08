@@ -174,6 +174,7 @@ def test_openai_client_includes_reasoning_effort() -> None:
     call = fake_client.responses.calls[0]
     assert call["reasoning"] == {"effort": "high"}
     assert call["max_output_tokens"] == 2048
+    assert call["timeout"] == 120.0
 
 
 def test_openai_client_requires_responses_api() -> None:

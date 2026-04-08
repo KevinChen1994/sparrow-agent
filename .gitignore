@@ -5,5 +5,4 @@ __pycache__/
 .claude/
 *.egg-info/
 data/config/openai.json
-/docs/
 .sparrow/

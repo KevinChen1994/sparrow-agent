@@ -6,7 +6,7 @@ from pathlib import Path
 from sparrow_agent import config
 from sparrow_agent.llm.base import ConfigErrorModelClient
 from sparrow_agent.llm.openai_client import OpenAIResponsesModelClient, build_default_model_client
-from sparrow_agent.schemas.models import Message, MemoryItem, RuntimeContext
+from sparrow_agent.schemas.models import Message, RuntimeContext
 
 
 class FakeResponsesAPI:
@@ -95,7 +95,6 @@ def test_openai_client_uses_responses_api() -> None:
         session_id="demo",
         user_input="hello",
         messages=[Message(role="assistant", content="previous")],
-        memories=[MemoryItem(text="User prefers concise answers")],
         active_skills=["memory-capture"],
         previous_response_id="resp_prev",
     )
@@ -134,7 +133,6 @@ def test_openai_client_maps_tool_message_to_function_call_output() -> None:
                 metadata={"tool_call_id": "call_tool_123"},
             )
         ],
-        memories=[],
         active_skills=[],
     )
 
@@ -168,7 +166,6 @@ def test_openai_client_includes_reasoning_effort() -> None:
         session_id="demo",
         user_input="hello",
         messages=[],
-        memories=[],
         active_skills=[],
     )
 
@@ -185,7 +182,6 @@ def test_openai_client_requires_responses_api() -> None:
         session_id="demo",
         user_input="hello",
         messages=[],
-        memories=[],
         active_skills=[],
     )
 
@@ -211,7 +207,6 @@ def test_orphan_tool_outputs_are_filtered() -> None:
                 metadata={"tool_call_id": "call_orphan"},
             )
         ],
-        memories=[],
         active_skills=[],
     )
 

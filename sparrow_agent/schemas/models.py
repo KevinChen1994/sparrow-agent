@@ -18,13 +18,6 @@ class Message(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-class MemoryItem(BaseModel):
-    text: str
-    source: str = "user"
-    created_at: datetime = Field(default_factory=utc_now)
-    tags: list[str] = Field(default_factory=list)
-
-
 class SessionRecord(BaseModel):
     session_id: str
     messages: list[Message] = Field(default_factory=list)
@@ -80,7 +73,6 @@ class RuntimeContext(BaseModel):
     session_id: str
     user_input: str
     messages: list[Message]
-    memories: list[MemoryItem]
     active_skills: list[str]
     documents: list[DocumentSnapshot] = Field(default_factory=list)
     previous_response_id: str | None = None

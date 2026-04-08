@@ -21,7 +21,6 @@ def build_store(tmp_path):
         runtime_dir=tmp_path / ".sparrow",
         templates_dir=tmp_path / "templates" / "runtime",
         sessions_dir=tmp_path / ".sparrow" / "sessions",
-        memories_dir=tmp_path / ".sparrow" / "memories",
         logs_dir=tmp_path / ".sparrow" / "logs",
         daily_memory_dir=tmp_path / ".sparrow" / "memory",
         agents_doc_path=tmp_path / ".sparrow" / "AGENTS.md",

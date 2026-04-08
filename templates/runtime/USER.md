@@ -1,14 +1,17 @@
 # USER
 
+## Purpose
+- This file stores who the user is: profile, preferences, and stable user context.
+- Only write information about the user here.
+
 ## Profile
-- Preferred name: Unknown
-- Language: Chinese
+- Name: Not provided yet.
+- Language: (preferred language)
 
 ## Preferences
-- Communication style: Concise and direct
-- Decision style: Not provided yet.
+- Communication style: Not provided yet.
 - Things to avoid: Not provided yet.
 
-## Current Priorities
+## Stable Context
 - Primary uses: Not provided yet.
 - Long-term context: Not provided yet.

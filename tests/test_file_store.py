@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from sparrow_agent.schemas.models import MemoryItem, SessionRecord
+from sparrow_agent.schemas.models import SessionRecord
 from sparrow_agent.storage.file_store import FileStore
 
 
@@ -22,7 +22,6 @@ def build_store(tmp_path: Path) -> FileStore:
         runtime_dir=tmp_path / ".sparrow",
         templates_dir=tmp_path / "templates" / "runtime",
         sessions_dir=tmp_path / ".sparrow" / "sessions",
-        memories_dir=tmp_path / ".sparrow" / "memories",
         logs_dir=tmp_path / ".sparrow" / "logs",
         daily_memory_dir=tmp_path / ".sparrow" / "memory",
         agents_doc_path=tmp_path / ".sparrow" / "AGENTS.md",
@@ -40,16 +39,6 @@ def test_session_round_trip(tmp_path: Path) -> None:
     loaded = store.load_session("demo")
     assert loaded.session_id == "demo"
     assert loaded.messages == []
-
-
-def test_memory_recall_matches_query(tmp_path: Path) -> None:
-    store = build_store(tmp_path)
-    store.append_memory(MemoryItem(text="User prefers Python and file storage"))
-    store.append_memory(MemoryItem(text="User likes Rust for tooling"))
-
-    recalled = store.recall_memories("Python", limit=5)
-    assert len(recalled) == 1
-    assert recalled[0].text == "User prefers Python and file storage"
 
 
 def test_ensure_core_documents(tmp_path: Path) -> None:

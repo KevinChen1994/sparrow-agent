@@ -151,11 +151,11 @@ Current and planned structure:
 These documents are for Sparrow Agent runtime behavior, not for managing development work:
 
 - `.sparrow/AGENTS.md`
-  Runtime operating instructions used by the agent.
+  Runtime operating instructions used by the agent: how it should work in this workspace.
 - `.sparrow/SOUL.md`
-  Agent personality and style document used at runtime.
+  Agent persona, tone, and behavioral boundaries used at runtime.
 - `.sparrow/USER.md`
-  Stable runtime user profile and preference document.
+  Stable runtime user profile, preferences, and user-specific context.
 - `.sparrow/MEMORY.md`
   Long-term runtime memory.
 - `.sparrow/memory/`
@@ -168,6 +168,9 @@ These documents are for Sparrow Agent runtime behavior, not for managing develop
 - Use `docs/todos/` for backlog items, deferred ideas, and non-immediate development work.
 - Do not use runtime documents under `.sparrow/` to manage project development.
 - Use runtime documents only for Agent execution context and personalization behavior.
+- `.sparrow/AGENTS.md` is for operating instructions.
+- `.sparrow/SOUL.md` is for persona, tone, and boundaries.
+- `.sparrow/USER.md` is for who the user is.
 
 ## Planning Rules
 

@@ -57,9 +57,9 @@ Reasoning-capable GPT-5.x models can be configured with `OPENAI_REASONING_EFFORT
 
 The runtime treats these markdown files under `.sparrow/` as first-class context:
 
-- `.sparrow/AGENTS.md`
-- `.sparrow/SOUL.md`
-- `.sparrow/USER.md`
+- `.sparrow/AGENTS.md` for operating instructions
+- `.sparrow/SOUL.md` for agent persona, tone, and boundaries
+- `.sparrow/USER.md` for who the user is, including preferences and stable context
 - `.sparrow/MEMORY.md`
 - `.sparrow/memory/YYYY-MM-DD.md`
 
@@ -70,7 +70,8 @@ If they do not exist yet, Sparrow Agent initializes them from `templates/runtime
 Runtime data is stored under `.sparrow/`:
 
 - `.sparrow/sessions/`
-- `.sparrow/memories/`
+- `.sparrow/MEMORY.md`
+- `.sparrow/memory/`
 - `.sparrow/logs/`
 
 ### Runtime Controls

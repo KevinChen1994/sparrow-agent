@@ -91,8 +91,6 @@ class OpenAIResponsesModelClient:
                 "Workspace documents:\n- "
                 + "\n- ".join(f"{item.kind}: {item.content.strip()[:800]}" for item in ctx.documents if item.content.strip())
             )
-        if ctx.memories:
-            lines.append("Recalled memory:\n- " + "\n- ".join(item.text for item in ctx.memories))
         return "\n\n".join(lines)
 
     @staticmethod

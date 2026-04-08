@@ -21,7 +21,6 @@ def build_store(tmp_path):
         runtime_dir=tmp_path / ".sparrow",
         templates_dir=tmp_path / "templates" / "runtime",
         sessions_dir=tmp_path / ".sparrow" / "sessions",
-        memories_dir=tmp_path / ".sparrow" / "memories",
         logs_dir=tmp_path / ".sparrow" / "logs",
         daily_memory_dir=tmp_path / ".sparrow" / "memory",
         agents_doc_path=tmp_path / ".sparrow" / "AGENTS.md",
@@ -60,7 +59,7 @@ def test_memory_tools_update_markdown_docs(tmp_path) -> None:
         ),
     )
     tools = {tool.definition().name: tool for tool in build_memory_tools(store)}
-    ctx = RuntimeContext(session_id="demo", user_input="hello", messages=[], memories=[], active_skills=[], loop_state=LoopState())
+    ctx = RuntimeContext(session_id="demo", user_input="hello", messages=[], active_skills=[], loop_state=LoopState())
 
     tools["patch_memory_doc"].execute(
         {

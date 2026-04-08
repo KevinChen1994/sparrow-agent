@@ -4,7 +4,6 @@ from pathlib import Path
 
 from sparrow_agent.core.runtime import AgentRuntime
 from sparrow_agent.llm.base import EchoModelClient
-from sparrow_agent.memory.store import MemoryStore
 from sparrow_agent.schemas.models import LLMResponse, RuntimeContext, ToolCallRequest, ToolDefinition
 from sparrow_agent.storage.file_store import FileStore
 
@@ -14,8 +13,40 @@ def create_runtime_templates(tmp_path: Path) -> None:
     (template_dir / "memory").mkdir(parents=True, exist_ok=True)
     (template_dir / "AGENTS.md").write_text("# Template AGENTS\n", encoding="utf-8")
     (template_dir / "SOUL.md").write_text("# Template SOUL\n", encoding="utf-8")
-    (template_dir / "USER.md").write_text("# Template USER\n", encoding="utf-8")
-    (template_dir / "MEMORY.md").write_text("# Template MEMORY\n", encoding="utf-8")
+    (template_dir / "USER.md").write_text(
+        (
+            "# USER\n\n"
+            "## Purpose\n"
+            "- This file stores who the user is: profile, preferences, and stable user context.\n"
+            "- Only write information about the user here.\n\n"
+            "## Profile\n"
+            "- Name: Not provided yet.\n"
+            "- Language: (preferred language)\n\n"
+            "## Preferences\n"
+            "- Communication style: Not provided yet.\n"
+            "- Things to avoid: Not provided yet.\n\n"
+            "## Stable Context\n"
+            "- Primary uses: Not provided yet.\n"
+            "- Long-term context: Not provided yet.\n"
+        ),
+        encoding="utf-8",
+    )
+    (template_dir / "MEMORY.md").write_text(
+        (
+            "# MEMORY\n\n"
+            "## Purpose\n"
+            "- This file stores durable project, task, and contextual facts that should remain useful across sessions.\n"
+            "- Do not use this file for agent persona or user profile details.\n"
+            "- Put user-specific preferences in `USER.md` and short-lived working context in `memory/YYYY-MM-DD.md`.\n\n"
+            "## Long-Term Facts\n"
+            "- No long-term facts captured yet.\n\n"
+            "## Ongoing Context\n"
+            "- No ongoing context captured yet.\n\n"
+            "## Working Notes\n"
+            "- No reusable working notes captured yet.\n"
+        ),
+        encoding="utf-8",
+    )
 
 
 def build_runtime(tmp_path: Path, model_client=None, memory_window: int = 100) -> AgentRuntime:
@@ -25,7 +56,6 @@ def build_runtime(tmp_path: Path, model_client=None, memory_window: int = 100) -
         runtime_dir=tmp_path / ".sparrow",
         templates_dir=tmp_path / "templates" / "runtime",
         sessions_dir=tmp_path / ".sparrow" / "sessions",
-        memories_dir=tmp_path / ".sparrow" / "memories",
         logs_dir=tmp_path / ".sparrow" / "logs",
         daily_memory_dir=tmp_path / ".sparrow" / "memory",
         agents_doc_path=tmp_path / ".sparrow" / "AGENTS.md",
@@ -35,7 +65,6 @@ def build_runtime(tmp_path: Path, model_client=None, memory_window: int = 100) -
     )
     return AgentRuntime(
         file_store=file_store,
-        memory_store=MemoryStore(file_store),
         model_client=model_client or EchoModelClient(),
         memory_window=memory_window,
     )
@@ -66,14 +95,14 @@ class MemoryRefreshCheckModelClient:
                             "document": "user",
                             "operation": "upsert_kv",
                             "heading": "Profile",
-                            "key": "Preferred name",
+                            "key": "Name",
                             "value": "Meng",
                         },
                     )
                 ],
                 finish_reason="tool_calls",
             )
-        status = "updated" if "Preferred name: Meng" in user_doc else "stale"
+        status = "updated" if "Name: Meng" in user_doc else "stale"
         return LLMResponse(content=status, finish_reason="stop")
 
 
@@ -128,7 +157,7 @@ def test_runtime_refreshes_documents_after_memory_mutation_tool(tmp_path: Path) 
         (
             "# USER\n\n"
             "## Profile\n"
-            "- Preferred name: Unknown\n"
+            "- Name: Not provided yet.\n"
             "- Language: Chinese\n\n"
             "## Preferences\n"
             "- Communication style: Concise and direct\n"
@@ -139,8 +168,8 @@ def test_runtime_refreshes_documents_after_memory_mutation_tool(tmp_path: Path) 
 
     assert result.reply == "updated"
     assert len(model_client.seen_user_docs) >= 2
-    assert "Preferred name: Unknown" in model_client.seen_user_docs[0]
-    assert "Preferred name: Meng" in model_client.seen_user_docs[1]
+    assert "Name: Not provided yet." in model_client.seen_user_docs[0]
+    assert "Name: Meng" in model_client.seen_user_docs[1]
 
 
 def test_runtime_consolidates_long_history(tmp_path: Path) -> None:
@@ -172,15 +201,25 @@ def test_runtime_start_session_returns_onboarding_prompt_for_default_user_doc(tm
 
     first = runtime.start_session(session_id="demo")
     assert "Before we start" in first.reply
-    assert "1. What should I call you?" in first.reply
-    assert "You can answer any or all of them now" in first.reply
+    assert "1/5. What should I call you?" in first.reply
 
 
 def test_runtime_start_session_is_suppressed_once_user_doc_is_filled(tmp_path: Path) -> None:
     runtime = build_runtime(tmp_path)
     runtime.file_store.write_document(
         runtime.file_store.user_doc_path,
-        "# USER\n\n## Profile\n- Preferred name: Chen\n\n## Preferences\n- Language: Chinese\n",
+        (
+            "# USER\n\n"
+            "## Profile\n"
+            "- Name: Chen\n"
+            "- Language: Chinese\n\n"
+            "## Preferences\n"
+            "- Communication style: concise\n"
+            "- Things to avoid: fluff\n\n"
+            "## Stable Context\n"
+            "- Primary uses: planning\n"
+            "- Long-term context: ongoing product work\n"
+        ),
     )
 
     started = runtime.start_session(session_id="demo")
@@ -198,7 +237,56 @@ def test_runtime_start_session_is_proactive_and_idempotent(tmp_path: Path) -> No
     first = runtime.start_session(session_id="demo")
     second = runtime.start_session(session_id="demo")
 
-    assert "1. What should I call you?" in first.reply
+    assert "1/5. What should I call you?" in first.reply
     assert second.reply == ""
     assistant_messages = [message for message in second.messages if message.role == "assistant"]
     assert len(assistant_messages) == 1
+
+
+def test_runtime_bootstrap_advances_one_question_at_a_time_and_updates_user_doc(tmp_path: Path) -> None:
+    runtime = build_runtime(tmp_path)
+
+    runtime.start_session(session_id="demo")
+    result = runtime.run_turn(session_id="demo", user_input="Chen")
+
+    assert result.reply == "2/5. What do you mainly want me to help you with?"
+    user_doc = runtime.file_store.read_document(runtime.file_store.user_doc_path)
+    assert "- Name: Chen" in user_doc
+    assert "- Language: English" in user_doc
+
+
+def test_runtime_bootstrap_does_not_restart_in_new_session_after_partial_answers(tmp_path: Path) -> None:
+    runtime = build_runtime(tmp_path)
+
+    runtime.start_session(session_id="demo")
+    runtime.run_turn(session_id="demo", user_input="Chen")
+
+    started = runtime.start_session(session_id="new-session")
+
+    assert started.reply == ""
+
+
+def test_runtime_bootstrap_switches_language_based_on_user_answer(tmp_path: Path) -> None:
+    runtime = build_runtime(tmp_path)
+
+    runtime.start_session(session_id="demo")
+    result = runtime.run_turn(session_id="demo", user_input="叫我猛哥")
+
+    assert result.reply == "2/5. 你主要希望我帮你做什么？"
+    user_doc = runtime.file_store.read_document(runtime.file_store.user_doc_path)
+    assert "- Language: Chinese" in user_doc
+
+
+def test_runtime_bootstrap_completes_after_fifth_answer_and_updates_memory(tmp_path: Path) -> None:
+    runtime = build_runtime(tmp_path)
+
+    runtime.start_session(session_id="demo")
+    runtime.run_turn(session_id="demo", user_input="Chen")
+    runtime.run_turn(session_id="demo", user_input="Help with coding")
+    runtime.run_turn(session_id="demo", user_input="Be concise")
+    runtime.run_turn(session_id="demo", user_input="Avoid fluff")
+    result = runtime.run_turn(session_id="demo", user_input="Remember Sparrow Agent product work")
+
+    assert result.reply == "Thanks. I have enough to get started."
+    memory_doc = runtime.file_store.read_document(runtime.file_store.memory_doc_path)
+    assert "- Remember Sparrow Agent product work" in memory_doc

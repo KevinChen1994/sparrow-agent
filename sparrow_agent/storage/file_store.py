@@ -12,7 +12,6 @@ from sparrow_agent.config import (
     DEFAULT_SOUL_DOC,
     DEFAULT_USER_DOC,
     LOGS_DIR,
-    MEMORIES_DIR,
     MEMORY_DOC_PATH,
     RUNTIME_DIR,
     RUNTIME_TEMPLATES_DIR,
@@ -22,14 +21,13 @@ from sparrow_agent.config import (
     WORKSPACE_ROOT,
     ensure_data_dirs,
 )
-from sparrow_agent.schemas.models import DocumentSnapshot, MemoryItem, Message, SessionRecord
+from sparrow_agent.schemas.models import DocumentSnapshot, Message, SessionRecord
 
 
 class FileStore:
     def __init__(
         self,
         sessions_dir: Path = SESSIONS_DIR,
-        memories_dir: Path = MEMORIES_DIR,
         logs_dir: Path = LOGS_DIR,
         workspace_root: Path = WORKSPACE_ROOT,
         runtime_dir: Path = RUNTIME_DIR,
@@ -42,7 +40,6 @@ class FileStore:
     ) -> None:
         ensure_data_dirs()
         self.sessions_dir = sessions_dir
-        self.memories_dir = memories_dir
         self.logs_dir = logs_dir
         self.workspace_root = workspace_root
         self.runtime_dir = runtime_dir
@@ -52,7 +49,7 @@ class FileStore:
         self.soul_doc_path = soul_doc_path
         self.user_doc_path = user_doc_path
         self.memory_doc_path = memory_doc_path
-        for path in (self.sessions_dir, self.memories_dir, self.logs_dir, self.runtime_dir, self.daily_memory_dir):
+        for path in (self.sessions_dir, self.logs_dir, self.runtime_dir, self.daily_memory_dir):
             path.mkdir(parents=True, exist_ok=True)
 
     def load_session(self, session_id: str) -> SessionRecord:
@@ -65,29 +62,6 @@ class FileStore:
         record.updated_at = datetime.now(timezone.utc)
         path = self.sessions_dir / f"{record.session_id}.json"
         path.write_text(record.model_dump_json(indent=2), encoding="utf-8")
-
-    def append_memory(self, item: MemoryItem) -> None:
-        path = self.memories_dir / "facts.jsonl"
-        with path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(item.model_dump(mode="json"), ensure_ascii=False))
-            handle.write("\n")
-
-    def recall_memories(self, query: str, limit: int = 5) -> list[MemoryItem]:
-        path = self.memories_dir / "facts.jsonl"
-        if not path.exists():
-            return []
-        query_terms = {term for term in query.lower().split() if term}
-        matches: list[MemoryItem] = []
-        for line in path.read_text(encoding="utf-8").splitlines():
-            if not line.strip():
-                continue
-            item = MemoryItem.model_validate_json(line)
-            haystack = item.text.lower()
-            if not query_terms or any(term in haystack for term in query_terms):
-                matches.append(item)
-            if len(matches) >= limit:
-                break
-        return matches
 
     def append_log(self, payload: dict) -> None:
         today = datetime.now(timezone.utc).strftime("%Y-%m-%d")

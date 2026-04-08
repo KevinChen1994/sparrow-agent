@@ -35,8 +35,6 @@ class EchoModelClient:
             prompt_lines.append("Active prompts: " + " | ".join(system_prompts))
         if ctx.documents:
             prompt_lines.append("Documents: " + " | ".join(doc.kind for doc in ctx.documents))
-        if ctx.memories:
-            prompt_lines.append("Recalled memory: " + " | ".join(item.text for item in ctx.memories))
         prompt_lines.append(f"User said: {ctx.user_input}")
         return LLMResponse(content="\n".join(prompt_lines), finish_reason="stop")
 

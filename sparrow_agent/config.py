@@ -19,7 +19,6 @@ USER_DOC_PATH = RUNTIME_DIR / "USER.md"
 MEMORY_DOC_PATH = RUNTIME_DIR / "MEMORY.md"
 DAILY_MEMORY_DIR = RUNTIME_DIR / "memory"
 SESSIONS_DIR = RUNTIME_DIR / "sessions"
-MEMORIES_DIR = RUNTIME_DIR / "memories"
 LOGS_DIR = RUNTIME_DIR / "logs"
 
 DEFAULT_AGENTS_DOC = """# AGENTS
@@ -41,12 +40,21 @@ DEFAULT_SOUL_DOC = """# SOUL
 
 DEFAULT_USER_DOC = """# USER
 
+## Purpose
+- This file stores who the user is: profile, preferences, and stable user context.
+- Only write information about the user here.
+
 ## Profile
-- Preferred name: Unknown
+- Name: Not provided yet.
+- Language: (preferred language)
 
 ## Preferences
-- Language: Chinese
-- Communication: Concise and direct
+- Communication style: Not provided yet.
+- Things to avoid: Not provided yet.
+
+## Stable Context
+- Primary uses: Not provided yet.
+- Long-term context: Not provided yet.
 """
 
 DEFAULT_MEMORY_DOC = """# MEMORY
@@ -57,7 +65,7 @@ DEFAULT_MEMORY_DOC = """# MEMORY
 
 
 def ensure_data_dirs() -> None:
-    for path in (CONFIG_DIR, RUNTIME_DIR, DAILY_MEMORY_DIR, SESSIONS_DIR, MEMORIES_DIR, LOGS_DIR):
+    for path in (CONFIG_DIR, RUNTIME_DIR, DAILY_MEMORY_DIR, SESSIONS_DIR, LOGS_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 

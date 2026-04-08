@@ -10,7 +10,6 @@ from sparrow_agent.core.halt_policy import HaltPolicy
 from sparrow_agent.core.react_loop import ReActLoop
 from sparrow_agent.llm.base import ModelClient
 from sparrow_agent.llm.openai_client import build_default_model_client
-from sparrow_agent.memory.store import MemoryStore
 from sparrow_agent.schemas.models import LoopState, Message, RuntimeContext, TraceStep, TurnResult
 from sparrow_agent.storage.file_store import FileStore
 from sparrow_agent.tools.filesystem import EditFileTool, EchoTool, ListDirTool, ReadFileTool, WriteFileTool
@@ -24,7 +23,6 @@ class AgentRuntime:
     def __init__(
         self,
         file_store: FileStore | None = None,
-        memory_store: MemoryStore | None = None,
         tool_registry: ToolRegistry | None = None,
         skill_registry: SkillRegistry | None = None,
         model_client: ModelClient | None = None,
@@ -33,7 +31,6 @@ class AgentRuntime:
         tool_result_max_chars: int = 500,
     ) -> None:
         self.file_store = file_store or FileStore()
-        self.memory_store = memory_store or MemoryStore(self.file_store)
         self.context_loader = ContextLoader(self.file_store)
         self.bootstrap = BootstrapManager(self.file_store)
         self.skill_registry = skill_registry or SkillRegistry(load_default_skills())
@@ -61,14 +58,19 @@ class AgentRuntime:
             return TurnResult(session_id=session_id, reply="", messages=session.messages)
 
         prompt = self.bootstrap.build_prompt()
-        if not session.messages or session.messages[-1].role != "assistant" or session.messages[-1].content != prompt:
-            session.messages.append(Message(role="assistant", content=prompt))
+        if (
+            not session.messages
+            or session.messages[-1].role != "assistant"
+            or session.messages[-1].content != prompt.reply
+            or session.messages[-1].metadata != prompt.metadata
+        ):
+            session.messages.append(Message(role="assistant", content=prompt.reply, metadata=prompt.metadata))
             session.updated_at = datetime.now(timezone.utc)
             self.file_store.save_session(session)
 
         return TurnResult(
             session_id=session_id,
-            reply=prompt,
+            reply=prompt.reply,
             messages=session.messages,
         )
 
@@ -92,13 +94,15 @@ class AgentRuntime:
     ) -> TurnResult:
         session = self.file_store.load_session(session_id)
         loaded = self.context_loader.load()
-        memories = self.memory_store.recall(query=user_input, session_id=session_id)
+        pending_bootstrap = self.bootstrap.is_waiting_for_answer(session.messages)
+        pending_bootstrap_key = None
+        if pending_bootstrap:
+            pending_bootstrap_key = str(session.messages[-1].metadata.get("bootstrap_key"))
 
         pre_context = RuntimeContext(
             session_id=session_id,
             user_input=user_input,
             messages=session.messages,
-            memories=memories,
             active_skills=[],
             documents=loaded.documents,
             previous_response_id=session.last_response_id,
@@ -118,6 +122,34 @@ class AgentRuntime:
             return TurnResult(
                 session_id=session_id,
                 reply=assistant_message.content,
+                messages=session.messages,
+            )
+
+        if pending_bootstrap and pending_bootstrap_key:
+            bootstrap_reply = self.bootstrap.handle_answer(question_key=pending_bootstrap_key, answer=user_input)
+            assistant_message = Message(role="assistant", content=bootstrap_reply.reply, metadata=bootstrap_reply.metadata)
+            session.messages.append(assistant_message)
+            session.updated_at = datetime.now(timezone.utc)
+            self.file_store.save_session(session)
+            self.file_store.append_log(
+                {
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "session_id": session_id,
+                    "user_input": user_input,
+                    "reply": bootstrap_reply.reply,
+                    "used_skills": [],
+                    "used_tools": [],
+                    "llm_response": None,
+                    "consolidation": None,
+                    "bootstrap": {
+                        "question_key": pending_bootstrap_key,
+                        "completed": bootstrap_reply.completed,
+                    },
+                }
+            )
+            return TurnResult(
+                session_id=session_id,
+                reply=bootstrap_reply.reply,
                 messages=session.messages,
             )
 
@@ -202,9 +234,6 @@ class AgentRuntime:
             }
         )
 
-        if self._should_persist_memory(user_input):
-            self.memory_store.save_fact(text=user_input, source="user", tags=["captured"])
-
         return TurnResult(
             session_id=session_id,
             reply=reply_text,
@@ -216,11 +245,6 @@ class AgentRuntime:
             consolidation=consolidation,
             trace_steps=trace_steps,
         )
-
-    @staticmethod
-    def _should_persist_memory(user_input: str) -> bool:
-        lowered = user_input.lower()
-        return lowered.startswith("/remember ") or "remember" in lowered or "记住" in user_input
 
     def register_mcp_server(self, name: str, command: str) -> None:
         self.mcp_adapter.register_server(MCPServerSpec(name=name, command=command))

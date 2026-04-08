@@ -78,14 +78,14 @@ export OPENAI_REASONING_EFFORT="medium"
 
 ### Data Flow
 
-User input → `AgentRuntime.run_turn()` → Load context from `.sparrow/` → Recall memories → Resolve skills → Execute explicit commands OR run ReAct loop → Consolidate to memory → Persist session → Return response
+User input → `AgentRuntime.run_turn()` → Load context from `.sparrow/` markdown documents → Resolve skills → Execute explicit commands OR run ReAct loop → Consolidate to memory → Persist session → Return response
 
 ### Runtime Documents
 
 The agent loads these markdown files from `.sparrow/` as first-class context:
-- `AGENTS.md`: Operating instructions
-- `SOUL.md`: Agent personality
-- `USER.md`: User profile
+- `AGENTS.md`: Operating instructions for the workspace
+- `SOUL.md`: Agent persona, tone, and boundaries
+- `USER.md`: Who the user is, including preferences and stable context
 - `MEMORY.md`: Long-term memory index
 - `memory/YYYY-MM-DD.md`: Daily memory logs
 
@@ -94,7 +94,7 @@ Initialized from `templates/runtime/` on first run.
 ### Storage
 
 - `.sparrow/sessions/`: Session JSON files
-- `.sparrow/memories/`: Structured memory (facts.jsonl)
+- `.sparrow/MEMORY.md`: Long-term markdown memory
 - `.sparrow/logs/`: Execution logs
 - `.sparrow/memory/`: Daily memory markdown
 - `data/config/`: OpenAI configuration

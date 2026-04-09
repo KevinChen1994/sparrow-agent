@@ -12,10 +12,10 @@ from sparrow_agent.schemas.models import Message, RuntimeContext
 class FakeResponsesAPI:
     def __init__(self) -> None:
         self.calls: list[dict] = []
+        self.stream_calls: list[dict] = []
 
-    def create(self, **kwargs):
-        self.calls.append(kwargs)
-
+    @staticmethod
+    def _build_response():
         class Response:
             output_text = "stubbed response"
 
@@ -46,6 +46,37 @@ class FakeResponsesAPI:
                 }
 
         return Response()
+
+    def create(self, **kwargs):
+        self.calls.append(kwargs)
+        return self._build_response()
+
+    def stream(self, **kwargs):
+        self.stream_calls.append(kwargs)
+        response = self._build_response()
+
+        class Event:
+            def __init__(self, event_type: str, delta: str = "") -> None:
+                self.type = event_type
+                self.delta = delta
+
+        class Stream:
+            def __iter__(self):
+                yield Event("response.output_text.delta", "stubbed ")
+                yield Event("response.output_text.delta", "response")
+
+            def get_final_response(self):
+                return response
+
+        class Manager:
+            def __enter__(self):
+                return Stream()
+
+            def __exit__(self, exc_type, exc, tb):
+                del exc_type, exc, tb
+                return None
+
+        return Manager()
 
 
 class FakeOpenAIClient:
@@ -175,6 +206,28 @@ def test_openai_client_includes_reasoning_effort() -> None:
     assert call["reasoning"] == {"effort": "high"}
     assert call["max_output_tokens"] == 2048
     assert call["timeout"] == 120.0
+
+
+def test_openai_client_streams_text_deltas() -> None:
+    fake_client = FakeOpenAIClient()
+    client = OpenAIResponsesModelClient(api_key="test", model="gpt-test", client=fake_client)
+    ctx = RuntimeContext(
+        session_id="demo",
+        user_input="hello",
+        messages=[],
+        active_skills=[],
+    )
+    chunks: list[str] = []
+
+    response = client.generate_stream(
+        ctx=ctx,
+        system_prompts=[],
+        text_delta_callback=chunks.append,
+    )
+
+    assert chunks == ["stubbed ", "response"]
+    assert response.content == "stubbed response"
+    assert fake_client.responses.stream_calls[0]["input"][-1] == {"role": "user", "content": "hello"}
 
 
 def test_openai_client_requires_responses_api() -> None:

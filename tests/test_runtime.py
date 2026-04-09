@@ -118,6 +118,41 @@ class FailingModelClient:
         raise RuntimeError("simulated model failure")
 
 
+class StreamingModelClient:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def generate(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+    ) -> LLMResponse:
+        del ctx, system_prompts, tool_definitions
+        raise AssertionError("streaming path should be used")
+
+    def generate_stream(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+        text_delta_callback=None,
+    ) -> LLMResponse:
+        del ctx, system_prompts, tool_definitions
+        self.calls += 1
+        if self.calls == 1:
+            if text_delta_callback is not None:
+                text_delta_callback("draft")
+            return LLMResponse(
+                tool_calls=[ToolCallRequest(id="call_1", name="echo", arguments={"text": "hi"})],
+                finish_reason="tool_calls",
+            )
+        if text_delta_callback is not None:
+            text_delta_callback("final ")
+            text_delta_callback("answer")
+        return LLMResponse(content="final answer", finish_reason="stop")
+
+
 def test_runtime_returns_model_reply_with_documents(tmp_path: Path) -> None:
     runtime = build_runtime(tmp_path)
 
@@ -159,6 +194,23 @@ def test_runtime_runs_react_tool_loop(tmp_path: Path) -> None:
     assert any(message.role == "tool" and message.content == "tool hi" for message in result.messages)
     # Verify function_call message is also persisted alongside tool result
     assert any(message.role == "function_call" and message.name == "echo" for message in result.messages)
+
+
+def test_runtime_emits_streaming_response_events(tmp_path: Path) -> None:
+    model_client = StreamingModelClient()
+    runtime = build_runtime(tmp_path, model_client=model_client)
+    events: list[tuple[str, dict]] = []
+
+    result = runtime.run_turn(
+        session_id="demo",
+        user_input="stream please",
+        response_event_callback=lambda event, payload: events.append((event, payload)),
+    )
+
+    assert result.reply == "final answer"
+    assert [event for event, _ in events] == ["response.delta", "response.reset", "response.delta", "response.delta"]
+    assert events[0][1]["delta"] == "draft"
+    assert events[-1][1]["delta"] == "answer"
 
 
 def test_runtime_refreshes_documents_after_memory_mutation_tool(tmp_path: Path) -> None:

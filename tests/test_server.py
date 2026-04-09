@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from apps.server.main import app, runtime
 from sparrow_agent.core.runtime import AgentRuntime
 from sparrow_agent.llm.base import EchoModelClient
+from sparrow_agent.schemas.models import LLMResponse, RuntimeContext, ToolDefinition
 from sparrow_agent.storage.file_store import FileStore
 
 
@@ -55,6 +56,30 @@ def build_runtime(tmp_path) -> AgentRuntime:
     )
 
 
+class StreamingEchoModelClient:
+    def generate(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+    ) -> LLMResponse:
+        del ctx, system_prompts, tool_definitions
+        raise AssertionError("streaming path should be used")
+
+    def generate_stream(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+        text_delta_callback=None,
+    ) -> LLMResponse:
+        del ctx, system_prompts, tool_definitions
+        if text_delta_callback is not None:
+            text_delta_callback("hello ")
+            text_delta_callback("world")
+        return LLMResponse(content="hello world", finish_reason="stop")
+
+
 def test_server_session_init_returns_bootstrap_prompt(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr("apps.server.main.runtime", build_runtime(tmp_path))
     client = TestClient(app)
@@ -67,7 +92,10 @@ def test_server_session_init_returns_bootstrap_prompt(tmp_path, monkeypatch) -> 
 
 
 def test_server_chat_stream_returns_sse_events(tmp_path, monkeypatch) -> None:
-    monkeypatch.setattr("apps.server.main.runtime", build_runtime(tmp_path))
+    runtime = build_runtime(tmp_path)
+    runtime.model_client = StreamingEchoModelClient()
+    runtime.react_loop.model_client = runtime.model_client
+    monkeypatch.setattr("apps.server.main.runtime", runtime)
     client = TestClient(app)
     if not any(route.path == "/api/chat/stream" and "POST" in (route.methods or set()) for route in app.routes):
         pytest.skip("stream endpoint not exposed in this environment")
@@ -81,5 +109,6 @@ def test_server_chat_stream_returns_sse_events(tmp_path, monkeypatch) -> None:
     payload = response.text
 
     assert "event: start" in payload
+    assert "event: response.delta" in payload
     assert "event: final" in payload
     assert "event: done" in payload

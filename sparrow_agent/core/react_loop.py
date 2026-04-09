@@ -26,6 +26,7 @@ class ReActLoop:
         ctx: RuntimeContext,
         system_prompts: list[str],
         trace_callback: Callable[[TraceStep], None] | None = None,
+        response_event_callback: Callable[[str, dict], None] | None = None,
     ) -> tuple[str, LLMResponse | None, list[str], LoopState, list[TraceStep]]:
         loop_state = ctx.loop_state.model_copy()
         last_response: LLMResponse | None = None
@@ -49,11 +50,33 @@ class ReActLoop:
                 )
             )
             current_ctx = ctx.model_copy(update={"loop_state": loop_state})
-            last_response = self.model_client.generate(
-                ctx=current_ctx,
-                system_prompts=system_prompts,
-                tool_definitions=self.tool_registry.list_definitions(),
-            )
+            streamed_text = False
+
+            def on_text_delta(delta: str) -> None:
+                nonlocal streamed_text
+                if not delta:
+                    return
+                streamed_text = True
+                if response_event_callback is not None:
+                    response_event_callback(
+                        "response.delta",
+                        {"delta": delta, "iteration": loop_state.iteration},
+                    )
+
+            stream_generate = getattr(self.model_client, "generate_stream", None)
+            if callable(stream_generate) and response_event_callback is not None:
+                last_response = stream_generate(
+                    ctx=current_ctx,
+                    system_prompts=system_prompts,
+                    tool_definitions=self.tool_registry.list_definitions(),
+                    text_delta_callback=on_text_delta,
+                )
+            else:
+                last_response = self.model_client.generate(
+                    ctx=current_ctx,
+                    system_prompts=system_prompts,
+                    tool_definitions=self.tool_registry.list_definitions(),
+                )
 
             should_stop, reason = self.halt_policy.should_stop(loop_state, last_response)
             if should_stop:
@@ -99,6 +122,12 @@ class ReActLoop:
                     )
                 )
                 return last_response.content or "(empty response)", last_response, used_tools, loop_state, trace_steps
+
+            if streamed_text and response_event_callback is not None:
+                response_event_callback(
+                    "response.reset",
+                    {"iteration": loop_state.iteration},
+                )
 
             tool_messages: list[Message] = []
             for tool_call in last_response.tool_calls:

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol
 
 from sparrow_agent.schemas.models import LLMResponse, RuntimeContext, ToolDefinition
@@ -11,6 +12,16 @@ class ModelClient(Protocol):
         ctx: RuntimeContext,
         system_prompts: list[str],
         tool_definitions: list[ToolDefinition] | None = None,
+    ) -> LLMResponse: ...
+
+
+class StreamingModelClient(Protocol):
+    def generate_stream(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+        text_delta_callback: Callable[[str], None] | None = None,
     ) -> LLMResponse: ...
 
 

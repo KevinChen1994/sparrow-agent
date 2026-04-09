@@ -242,6 +242,14 @@
           renderTraceLines(pending);
           return;
         }
+        if (sse.event === "response.delta") {
+          pending.content.textContent += sse.data.delta || "";
+          return;
+        }
+        if (sse.event === "response.reset") {
+          pending.content.textContent = "";
+          return;
+        }
         if (sse.event === "final") {
           pending.content.textContent = sse.data.reply || "(empty)";
           if ((!pending.traceLines.length) && Array.isArray(sse.data.trace_steps)) {

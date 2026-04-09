@@ -260,6 +260,7 @@ class SparrowCLIApp:
         self.turn_started_at: float | None = None
         self.current_trace_steps: list[TraceStep] = []
         self.last_trace_steps: list[TraceStep] = []
+        self.current_streamed_reply = ""
         self._lock = threading.RLock()
         self._transcript_blocks = [
             build_startup_banner(color=False),
@@ -407,7 +408,9 @@ class SparrowCLIApp:
             self.busy = True
             self.turn_started_at = time.monotonic()
             self.current_trace_steps = []
+            self.current_streamed_reply = ""
         self._refresh_trace()
+        self._refresh_transcript()
         self.application.invalidate()
         thread = threading.Thread(target=self._run_turn, args=(user_input,), daemon=True)
         thread.start()
@@ -418,12 +421,14 @@ class SparrowCLIApp:
                 session_id=self.session_id,
                 user_input=user_input,
                 trace_callback=self._handle_trace_step,
+                response_event_callback=self._handle_response_event,
             )
         except BaseException as exc:  # pragma: no cover
             with self._lock:
                 self.busy = False
                 self.turn_started_at = None
                 self.last_trace_steps = list(self.current_trace_steps)
+                self.current_streamed_reply = ""
             self._append_block(f"error>\n  {exc}")
             self._refresh_trace()
             self.application.invalidate()
@@ -433,6 +438,7 @@ class SparrowCLIApp:
             self.busy = False
             self.turn_started_at = None
             self.last_trace_steps = list(result.trace_steps or self.current_trace_steps)
+            self.current_streamed_reply = ""
         self._append_block(format_turn_block(result))
         self._refresh_trace()
         self.application.invalidate()
@@ -441,6 +447,17 @@ class SparrowCLIApp:
         with self._lock:
             self.current_trace_steps.append(step)
         self._refresh_trace()
+        self.application.invalidate()
+
+    def _handle_response_event(self, event: str, payload: dict) -> None:
+        with self._lock:
+            if event == "response.delta":
+                delta = payload.get("delta", "")
+                if isinstance(delta, str) and delta:
+                    self.current_streamed_reply += delta
+            elif event == "response.reset":
+                self.current_streamed_reply = ""
+        self._refresh_transcript()
         self.application.invalidate()
 
     def _append_block(self, block: str) -> None:
@@ -454,7 +471,10 @@ class SparrowCLIApp:
 
     def _refresh_transcript(self) -> None:
         with self._lock:
-            text = "\n\n".join(self._transcript_blocks).rstrip() + "\n"
+            blocks = list(self._transcript_blocks)
+            if self.busy and self.current_streamed_reply:
+                blocks.append("sparrow>\n" + format_agent_reply(self.current_streamed_reply))
+            text = "\n\n".join(blocks).rstrip() + "\n"
         self.transcript_area.buffer.set_document(
             Document(text=text, cursor_position=len(text)),
             bypass_readonly=True,

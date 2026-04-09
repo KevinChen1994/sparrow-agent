@@ -48,6 +48,12 @@ Adding real token streaming would require:
 
 That is a larger kernel change. The CLI spinner improves interaction now without coupling the adapter to speculative runtime behavior.
 
+Update 2026-04-09:
+
+- shared runtime text streaming now exists for supported model clients
+- the spinner still matters as fallback state and for non-streaming phases
+- this document remains the design note for the waiting animation, not the source of truth for streaming support
+
 ## Follow-Up
 
 If runtime observability is upgraded later, the CLI should prefer real phase events such as:

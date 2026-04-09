@@ -91,6 +91,7 @@ class AgentRuntime:
         session_id: str,
         user_input: str,
         trace_callback: Callable[[TraceStep], None] | None = None,
+        response_event_callback: Callable[[str, dict], None] | None = None,
     ) -> TurnResult:
         session = self.file_store.load_session(session_id)
         loaded = self.context_loader.load()
@@ -231,6 +232,7 @@ class AgentRuntime:
                 ctx=ctx,
                 system_prompts=system_prompts,
                 trace_callback=trace_callback,
+                response_event_callback=response_event_callback,
             )
             trace_steps = loop_trace
             trace_index = len(trace_steps)

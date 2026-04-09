@@ -12,6 +12,7 @@ Sparrow Agent is a lightweight Python single-agent runtime with:
 - skill loading hooks
 - a placeholder MCP adapter
 - OpenAI Responses API support
+- streaming assistant text in Web and interactive CLI when the model client supports it
 
 ### Run
 

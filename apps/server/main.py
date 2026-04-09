@@ -58,12 +58,16 @@ async def chat_stream(payload: ChatRequest) -> StreamingResponse:
     def on_trace(step: TraceStep) -> None:
         emit("trace", step.model_dump(mode="json"))
 
+    def on_response_event(event: str, data: dict) -> None:
+        emit(event, data)
+
     def worker() -> None:
         try:
             result = runtime.run_turn(
                 session_id=payload.session_id,
                 user_input=payload.message,
                 trace_callback=on_trace if payload.show_thinking else None,
+                response_event_callback=on_response_event,
             )
             if not payload.show_thinking:
                 result = result.model_copy(update={"trace_steps": []})

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from typing import Any
 
 from sparrow_agent.config import load_openai_settings
@@ -43,6 +44,45 @@ class OpenAIResponsesModelClient:
         if not hasattr(self.client, "responses"):
             raise RuntimeError("OpenAI client does not support the Responses API. Upgrade to openai>=2.30.0.")
 
+        request = self._build_request(
+            ctx=ctx,
+            system_prompts=system_prompts,
+            tool_definitions=tool_definitions,
+        )
+        response = self.client.responses.create(**request)
+        return self._build_llm_response(response)
+
+    def generate_stream(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+        text_delta_callback: Callable[[str], None] | None = None,
+    ) -> LLMResponse:
+        if text_delta_callback is None:
+            return self.generate(ctx=ctx, system_prompts=system_prompts, tool_definitions=tool_definitions)
+        if not hasattr(self.client, "responses"):
+            raise RuntimeError("OpenAI client does not support the Responses API. Upgrade to openai>=2.30.0.")
+
+        request = self._build_request(
+            ctx=ctx,
+            system_prompts=system_prompts,
+            tool_definitions=tool_definitions,
+        )
+        with self.client.responses.stream(**request) as stream:
+            for event in stream:
+                if getattr(event, "type", None) == "response.output_text.delta":
+                    delta = getattr(event, "delta", "")
+                    if isinstance(delta, str) and delta:
+                        text_delta_callback(delta)
+            return self._build_llm_response(stream.get_final_response())
+
+    def _build_request(
+        self,
+        ctx: RuntimeContext,
+        system_prompts: list[str],
+        tool_definitions: list[ToolDefinition] | None = None,
+    ) -> dict[str, Any]:
         instructions = self._build_instructions(ctx=ctx, system_prompts=system_prompts)
         request: dict[str, Any] = {
             "model": self.model,
@@ -60,8 +100,9 @@ class OpenAIResponsesModelClient:
             request["timeout"] = self.timeout_seconds
         if ctx.previous_response_id:
             request["previous_response_id"] = ctx.previous_response_id
+        return request
 
-        response = self.client.responses.create(**request)
+    def _build_llm_response(self, response: Any) -> LLMResponse:
         raw_response = self._to_dict(response)
         output_items = raw_response.get("output", [])
         tool_calls = self._extract_tool_calls(output_items)

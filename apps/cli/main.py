@@ -15,19 +15,27 @@ from apps.cli.ui import (
     supports_interactive_cli,
 )
 from sparrow_agent.core.runtime import AgentRuntime
+from sparrow_agent.session_ids import resolve_session_id
 from sparrow_agent.schemas.models import TraceStep
 
 app = typer.Typer(add_completion=False)
 
 
 @app.command()
-def main(session_id: str = typer.Option("default", help="Session identifier.")) -> None:
+def main(
+    session_id: str | None = typer.Option(
+        None,
+        "--session-id",
+        help="Session identifier. Leave unset to start a new random session.",
+    )
+) -> None:
+    resolved_session_id = resolve_session_id(session_id, prefix="cli")
     runtime = AgentRuntime()
     if supports_interactive_cli():
-        SparrowCLIApp(runtime, session_id=session_id).run()
+        SparrowCLIApp(runtime, session_id=resolved_session_id).run()
         return
 
-    _run_basic_cli(runtime, session_id=session_id)
+    _run_basic_cli(runtime, session_id=resolved_session_id)
 
 
 def _run_basic_cli(runtime: AgentRuntime, *, session_id: str) -> None:

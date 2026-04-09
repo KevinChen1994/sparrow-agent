@@ -11,9 +11,6 @@ Use this directory only for work that is intentionally not on the current execut
 
 ## Current Deferred Items
 
-- Random default session id
-  Defer until session lifecycle and persistence behavior are being tightened. When no `session-id` is provided, stop reusing `default` and generate a random session id instead.
-
 - Richer CLI animation and streaming output
   Defer until runtime observability and event shapes are clearer.
 

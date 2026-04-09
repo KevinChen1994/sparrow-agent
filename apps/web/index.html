@@ -115,7 +115,7 @@
         <h1>Sparrow Agent</h1>
         <button id="thinking-toggle" data-on="false" type="button">Thinking: OFF</button>
       </div>
-      <div class="hint">Shortcut: Ctrl/Cmd + Shift + T</div>
+      <div class="hint" id="session-hint">Shortcut: Ctrl/Cmd + Shift + T</div>
       <div id="messages"></div>
       <form id="chat-form">
         <input id="message" name="message" placeholder="Ask something..." autocomplete="off" />
@@ -123,13 +123,34 @@
       </form>
     </main>
     <script>
-      const sessionId = "web-demo";
+      function buildSessionId(prefix = "web") {
+        const iso = new Date().toISOString();
+        const timestamp = iso.slice(0, 19).replace("T", "-").replace(/:/g, "").replace(/-/g, "");
+        const randomPart = globalThis.crypto?.randomUUID
+          ? globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 8)
+          : Math.random().toString(16).slice(2, 10).padEnd(8, "0");
+        return `${prefix}-${timestamp.slice(0, 8)}-${timestamp.slice(8)}-${randomPart}`.toLowerCase();
+      }
+
+      function getSessionId() {
+        const storageKey = "sparrow-session-id";
+        const existing = globalThis.sessionStorage?.getItem(storageKey);
+        if (existing) return existing;
+        const created = buildSessionId();
+        globalThis.sessionStorage?.setItem(storageKey, created);
+        return created;
+      }
+
+      const sessionId = getSessionId();
       const messages = document.getElementById("messages");
       const form = document.getElementById("chat-form");
       const input = document.getElementById("message");
       const thinkingToggle = document.getElementById("thinking-toggle");
+      const sessionHint = document.getElementById("session-hint");
       const seenMessages = new Set();
       let showThinking = false;
+
+      sessionHint.textContent = `Session: ${sessionId} | Shortcut: Ctrl/Cmd + Shift + T`;
 
       function syncThinkingToggle() {
         thinkingToggle.dataset.on = String(showThinking);

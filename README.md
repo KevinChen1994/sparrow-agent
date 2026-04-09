@@ -20,11 +20,13 @@ Sparrow Agent is a lightweight Python single-agent runtime with:
 uv venv sparrow_env
 source sparrow_env/bin/activate
 uv pip install -e '.[dev]'
-python -m apps.cli.main --session-id demo
+python -m apps.cli.main
 uvicorn apps.server.main:app --reload
 ```
 
 All commands should be run inside this project environment after activation.
+
+If you do not pass `--session-id`, the CLI starts a new random session id instead of reusing a shared default.
 
 CLI controls:
 
